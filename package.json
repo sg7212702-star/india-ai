@@ -1,0 +1,21 @@
+{
+  "name": "india-ai-public-starter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "India AI - public-ready Google Gemini and Veo starter",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google/genai": "latest",
+    "express": "latest",
+    "express-rate-limit": "latest",
+    "helmet": "latest",
+    "morgan": "latest",
+    "dotenv": "latest"
+  }
+}

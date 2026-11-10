@@ -1,20 +1,36 @@
-# India AI — Public Google AI Starter
+# AI Animation Studio
 
-A mobile/computer responsive public starter using Google's Gemini API and Veo 3.1 from a server-side Node.js backend.
+A work-in-progress project builder for story-led 2D and realistic 3D animation.
 
-## Setup
-1. Copy `.env.example` to `.env` locally, or add the variables in your hosting provider's Environment Variables.
-2. Set `GEMINI_API_KEY` to your Google AI Studio API key. Never put the key in frontend code or GitHub.
-3. Run `npm install` then `npm start`.
+## Current status
+
+The responsive project-builder shell is available at `public/index.html`. It lets you prepare a brief using a text prompt, story, or photo + story; choose 2D/realistic 3D, 9:16/16:9, target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
+
+Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not synced to an account or server. A selected reference photo is previewed locally only and must be selected again after reopening a saved brief.
+
+**Real video generation is intentionally disabled in the UI.** The repository does not yet have the required authenticated user system, durable job queue, GPU worker, multi-scene pipeline, FFmpeg assembly, or admin panel. The interface does not create a slideshow or pretend that a video was rendered.
+
+## Run locally
+
+Requirements: Node.js 20+
+
+1. Clone this repository.
+2. Run `npm install`.
+3. Run `npm start`.
 4. Open `http://localhost:3000`.
 
-## Public deployment
-- Build command: `npm install`
-- Start command: `npm start`
-- Node 20+
-- Add `GEMINI_API_KEY`, `DAILY_TEXT_LIMIT`, `DAILY_IMAGE_LIMIT`, `DAILY_VIDEO_LIMIT` as server environment variables.
+The current server still contains experimental Gemini/Veo API routes. The frontend does not call those routes. Do not expose paid generation to users until provider billing, authentication, quota enforcement, and queue safety have been implemented.
 
-## Important
-The daily limits in this starter are per IP and in-memory. For a larger public launch, add real authentication, persistent database credits, object storage, abuse controls, billing/spending limits, and a job queue. Generated files are stored on the server's local disk and may be lost on hosts with ephemeral storage.
+## Zero-budget policy
 
-Google Veo 3.1 generation is asynchronous and requires polling until the operation completes. The current implementation uses the official Google GenAI JavaScript SDK flow.
+Do not assume a free hosted GPU. Free CPU hosting is suitable for the website shell and lightweight API work, not reliable inference for modern video-generation models. A real video worker must be connected and tested before the Generate action is enabled. Paid providers must remain explicitly opt-in.
+
+## Planned features
+
+- Firebase Authentication, Firestore profiles, user dashboard and admin panel.
+- Two video-generation reservations per user per day, with only one active job per user.
+- Durable scene/job queue and asset storage.
+- Genuine multi-clip video generation, Hindi narration, lip-sync where supported, background music, character continuity, and FFmpeg MP4 export.
+- 9:16 and 16:9 exports, with projects targeting up to approximately five minutes.
+
+See [AI Animation Studio Build Plan](./AI_ANIMATION_STUDIO_BUILD_PLAN.md) for the technical audit, data model, zero-budget constraints, and implementation sequence.

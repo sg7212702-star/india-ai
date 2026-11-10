@@ -8,18 +8,22 @@ The responsive project-builder shell is available at `public/index.html`. It let
 
 Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not synced to an account or server. A selected reference photo is previewed locally only and must be selected again after reopening a saved brief.
 
-**Real video generation is intentionally disabled in the UI.** The repository does not yet have the required authenticated user system, durable job queue, GPU worker, multi-scene pipeline, FFmpeg assembly, or admin panel. The interface does not create a slideshow or pretend that a video was rendered.
+**Real video generation is intentionally disabled in the UI and on the API by default.** The repository does not yet have the required authenticated user system, durable job queue, GPU worker, multi-scene pipeline, FFmpeg assembly, or admin panel. The interface does not create a slideshow or pretend that a video was rendered.
 
 ## Run locally
 
 Requirements: Node.js 20+
 
 1. Clone this repository.
-2. Run `npm install`.
-3. Run `npm start`.
-4. Open `http://localhost:3000`.
+2. Copy `.env.example` to `.env`.
+3. Leave `ENABLE_GEMINI_API=false` and `ENABLE_PAID_VIDEO_API=false` for the zero-budget preview.
+4. Run `npm install`.
+5. Run `npm start`.
+6. Open `http://localhost:3000`.
 
-The current server still contains experimental Gemini/Veo API routes. The frontend does not call those routes. Do not expose paid generation to users until provider billing, authentication, quota enforcement, and queue safety have been implemented.
+The Google Gemini text/image routes require an explicit `ENABLE_GEMINI_API=true` plus a valid server-side API key. The Veo video route additionally requires `ENABLE_PAID_VIDEO_API=true`. Do not enable paid video generation until provider billing, authentication, quota enforcement, and queue safety have been implemented and reviewed. Never put an API key in frontend code or commit a real `.env` file.
+
+The current legacy API limits are in-memory and IP-based. They are not the required two-per-user daily quota and must not be treated as production access control.
 
 ## Zero-budget policy
 

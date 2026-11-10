@@ -44,7 +44,7 @@ Added `public/index.html` plus external `public/styles.css` and `public/app.js` 
 
 Important limitations are displayed in the UI: saved briefs remain in the current browser/device; selected photo bytes are only previewed in the current session and must be selected again after reopening; no user account sync exists; and the Generate button is deliberately disabled. This UI does not call Veo or pretend to render video.
 
-Added visible drag-and-drop upload feedback and a safety gate to the existing backend: Gemini text/image routes now require `ENABLE_GEMINI_API=true`; the Veo route requires `ENABLE_PAID_VIDEO_API=true` and otherwise returns 503 without sending a provider request. Added a safe `.env.example` with both flags false and a `.gitignore` for environment secrets and generated media.
+Added visible drag-and-drop upload feedback, a `npm run check` syntax-check command, and a GitHub Actions validation workflow. A workflow run has not yet been observed. Added a safety gate to the existing backend: Gemini text/image routes now require `ENABLE_GEMINI_API=true`; the Veo route requires `ENABLE_PAID_VIDEO_API=true` and otherwise returns 503 without sending a provider request. Added a safe `.env.example` with both flags false and a `.gitignore` for environment secrets and generated media.
 
 This is a frontend shell and a provider-call safety guard, not a completed studio. It still needs browser/device testing and the identity, persistent queue, worker, storage, and admin layers below. The legacy API quotas remain IP-based and in-memory; they are not production user quotas.
 

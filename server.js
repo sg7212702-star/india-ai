@@ -16,7 +16,10 @@ const publicDir = path.join(__dirname, 'public');
 const generatedDir = path.join(publicDir, 'generated');
 await fs.mkdir(generatedDir, { recursive: true });
 
-if (!process.env.GEMINI_API_KEY) console.warn('GEMINI_API_KEY is not set. Add it in the deployment environment.');
+const geminiApiEnabled = process.env.ENABLE_GEMINI_API === 'true';
+const paidVideoApiEnabled = process.env.ENABLE_PAID_VIDEO_API === 'true';
+
+if (!process.env.GEMINI_API_KEY) console.warn('GEMINI_API_KEY is not set. Add it only if you explicitly enable a Google API.');
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
@@ -52,18 +55,34 @@ function requireKey(res) {
   }
   return true;
 }
+function requireGeminiEnabled(res) {
+  if (!geminiApiEnabled) {
+    res.status(503).json({ error: 'Gemini API routes are disabled by default. Set ENABLE_GEMINI_API=true only after reviewing API costs and limits.' });
+    return false;
+  }
+  return requireKey(res);
+}
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, name: 'India AI', limits }));
+app.get('/api/health', (_req, res) => res.json({
+  ok: true,
+  name: 'AI Animation Studio',
+  limits,
+  features: {
+    geminiApiEnabled,
+    paidVideoApiEnabled,
+    videoGenerationReady: false
+  }
+}));
 app.get('/api/limits', (req, res) => {
   const row = daily.get(`${identity(req)}:${today()}`) || { text: 0, image: 0, video: 0 };
   res.json({ date: today(), limits, used: row, remaining: { text: Math.max(0, limits.text-row.text), image: Math.max(0, limits.image-row.image), video: Math.max(0, limits.video-row.video) } });
 });
 
 app.post('/api/text', async (req, res) => {
-  if (!requireKey(res)) return;
-  if (!spend(identity(req), 'text')) return res.status(429).json({ error: 'Daily text limit reached.' });
+  if (!requireGeminiEnabled(res)) return;
   const prompt = String(req.body?.prompt || '').trim();
   if (!prompt || prompt.length > 8000) return res.status(400).json({ error: 'Enter a prompt up to 8000 characters.' });
+  if (!spend(identity(req), 'text')) return res.status(429).json({ error: 'Daily text limit reached.' });
   try {
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     res.json({ text: response.text || '' });
@@ -71,10 +90,10 @@ app.post('/api/text', async (req, res) => {
 });
 
 app.post('/api/image', async (req, res) => {
-  if (!requireKey(res)) return;
-  if (!spend(identity(req), 'image')) return res.status(429).json({ error: 'Daily image limit reached.' });
+  if (!requireGeminiEnabled(res)) return;
   const prompt = String(req.body?.prompt || '').trim();
   if (!prompt || prompt.length > 5000) return res.status(400).json({ error: 'Enter an image prompt up to 5000 characters.' });
+  if (!spend(identity(req), 'image')) return res.status(429).json({ error: 'Daily image limit reached.' });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3.1-flash-image-preview',
@@ -93,11 +112,14 @@ app.post('/api/image', async (req, res) => {
 });
 
 app.post('/api/video', async (req, res) => {
+  if (!paidVideoApiEnabled) {
+    return res.status(503).json({ error: 'Paid video generation is disabled by default. No Veo request was sent. Enable ENABLE_PAID_VIDEO_API=true only after explicitly accepting the provider cost.' });
+  }
   if (!requireKey(res)) return;
-  if (!spend(identity(req), 'video')) return res.status(429).json({ error: 'Daily video limit reached.' });
   const prompt = String(req.body?.prompt || '').trim();
   const aspectRatio = req.body?.aspectRatio === '9:16' ? '9:16' : '16:9';
   if (!prompt || prompt.length > 6000) return res.status(400).json({ error: 'Enter a video prompt up to 6000 characters.' });
+  if (!spend(identity(req), 'video')) return res.status(429).json({ error: 'Daily video limit reached.' });
   try {
     let operation = await ai.models.generateVideos({
       model: 'veo-3.1-generate-preview',
@@ -118,4 +140,4 @@ app.post('/api/video', async (req, res) => {
 });
 
 app.get(/.*/, (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
-app.listen(port, () => console.log(`India AI running on port ${port}`));
+app.listen(port, () => console.log(`AI Animation Studio running on port ${port}`));

@@ -4,7 +4,7 @@ A work-in-progress project builder for story-led 2D and realistic 3D animation.
 
 ## Current status
 
-The responsive project-builder shell is available at `public/index.html`. It lets you prepare a brief using a text prompt, story, or photo + story; choose 2D/realistic 3D, 9:16/16:9, target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
+The responsive project-builder shell is available at `public/index.html`, with external `public/styles.css` and `public/app.js` assets so the page works with the server's Helmet content-security policy. It lets you prepare a brief using a text prompt, story, or photo + story; choose 2D/realistic 3D, 9:16/16:9, target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
 
 Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not synced to an account or server. A selected reference photo is previewed locally only and must be selected again after reopening a saved brief.
 

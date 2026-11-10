@@ -1,6 +1,6 @@
 # AI Animation Studio — Build Plan and Technical Audit
 
-Updated: 2026-11-09
+Updated: 2026-11-10
 
 ## Product requirements to preserve
 
@@ -27,9 +27,24 @@ Important gaps before this can be called AI Animation Studio:
 4. There is no active-job lock or durable queue. The HTTP request stays open while the provider is polled.
 5. There is no Firebase Authentication, persistent user/usage data, admin role, or admin panel.
 6. Generated media is written to local server disk, which may be ephemeral on a hosted service.
-7. The README instructs users to copy `.env.example`, but that file was not present at the checked path. The server also expects `public/index.html`; neither `public/index.html` nor a root `index.html` was found at the checked paths.
+7. The original README referred to `.env.example`, but that file was not present. The server expects `public/index.html`; the frontend has now been added at that path.
 
 The API key is correctly kept on the server rather than in browser code. Preserve that security boundary.
+
+## Implementation progress — 2026-11-10
+
+Added `public/index.html`, a responsive dark-glass project-builder shell. It currently provides:
+
+- Input modes for text prompt, full story, and photo + story.
+- Local image selection, drag/drop and preview (JPG/PNG/WebP, up to 8 MB).
+- 2D Animation and Realistic 3D style selection.
+- 9:16 and 16:9 format choices; target durations from 30 seconds to 5 minutes.
+- Hindi voice direction, background-music choice, lip-sync and character-continuity options.
+- Local-only project brief saving, reopening, deletion, and JSON export.
+
+Important limitations are displayed in the UI: saved briefs remain in the current browser/device; selected photo bytes are only previewed in the current session and must be selected again after reopening; no user account sync exists; and the Generate button is deliberately disabled. This UI does not call Veo or pretend to render video.
+
+This is a frontend shell, not a completed studio. It still needs browser/device testing and the identity, persistent queue, worker, storage, and admin layers below.
 
 ## Zero-budget decision
 
@@ -51,7 +66,7 @@ References:
 
 ## Target architecture
 
-- Frontend: React + TypeScript, responsive dark transparent-glass UI, with clear stages and no fake progress.
+- Frontend: React + TypeScript, responsive dark transparent-glass UI, with clear stages and no fake progress. The first static HTML shell is now in place; it can be migrated to React only if the next implementation needs justify it.
 - API: Node.js/Express; verify Firebase ID tokens on every private route.
 - Identity/data: Firebase Authentication + Firestore. Store role claims for admin access.
 - Media storage: a pluggable object-storage adapter with signed upload/download URLs; do not depend on ephemeral server disk for final assets.
@@ -82,9 +97,9 @@ When a user submits a generation, a Firestore transaction must:
 
 On success, mark the reservation completed. On a terminal failure before usable output, refund the reservation exactly once. Never enforce quota only in the browser or by IP.
 
-## Implementation order
+## Remaining implementation order
 
-1. **Make the shell real:** add the missing responsive frontend and a visible project dashboard; keep generation disabled until a real worker is connected.
+1. **Test the shell:** load the page on mobile and desktop; check upload preview, mode switching, local draft persistence, JSON export, and responsive layout.
 2. **Identity and quotas:** Firebase Auth, Firestore user profiles, admin claim, daily two-generation transaction, one-active-job rule.
 3. **Durable job API:** submit/status/cancel endpoints and a worker claim/heartbeat protocol. Return a job ID immediately instead of holding an HTTP request open.
 4. **Scene planner:** turn story/prompt into ordered scene records; store character bibles, reference images, voice settings, and continuity frame references.

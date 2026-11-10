@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b12">
+  <meta name="description" content="AI Animation Studio project builder for story-led 2D and realistic 3D video projects.">
+  <title>AI Animation Studio</title>
+  <style>
+    :root{color-scheme:dark;--bg:#090b12;--panel:rgba(20,24,38,.82);--panel2:#121827;--line:rgba(174,190,255,.13);--muted:#9aa4ba;--text:#f5f7ff;--cyan:#7be7ee;--violet:#9b8cff;--pink:#f39bd6;--good:#86e6b4;--warn:#ffd18b}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(900px 500px at 10% -5%,rgba(75,95,190,.24),transparent 60%),radial-gradient(700px 420px at 100% 5%,rgba(31,170,181,.13),transparent 60%),var(--bg);color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input,textarea,select{font:inherit}button{cursor:pointer}.shell{max-width:1240px;margin:auto;padding:24px 22px 64px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:42px}.brand{display:flex;align-items:center;gap:12px;font-weight:750;letter-spacing:.01em}.brand-mark{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--cyan),var(--violet) 58%,var(--pink));display:grid;place-items:center;color:#101321;font-weight:900;font-size:20px;box-shadow:0 8px 30px #766cff35}.brand small{display:block;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase}.top-actions{display:flex;align-items:center;gap:10px}.pill{border:1px solid var(--line);border-radius:999px;padding:8px 13px;color:#c6cce0;font-size:12px;background:#ffffff08}.pill strong{color:var(--warn);font-weight:650}.ghost{background:#ffffff08;border:1px solid var(--line);color:#dce2f5;padding:10px 15px;border-radius:12px}.hero{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:28px}.eyebrow{color:var(--cyan);font-size:11px;font-weight:800;letter-spacing:.19em;text-transform:uppercase}.hero h1{font-size:clamp(32px,5vw,52px);line-height:1.04;letter-spacing:-.045em;margin:10px 0 12px;max-width:690px}.hero h1 span{background:linear-gradient(90deg,var(--cyan),#b4a6ff 60%,var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}.hero p{max-width:650px;color:var(--muted);margin:0}.hero-note{max-width:245px;color:#bac4d9;font-size:12px;border-left:2px solid #8f85ff;padding:5px 0 5px 13px}
+    .layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.8fr);gap:18px;align-items:start}.panel{background:linear-gradient(145deg,rgba(24,29,47,.94),rgba(14,18,30,.94));border:1px solid var(--line);border-radius:22px;box-shadow:0 18px 60px #0005;overflow:hidden}.panel-head{padding:20px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.panel-head h2{font-size:17px;margin:0}.panel-head p{font-size:12px;color:var(--muted);margin:3px 0 0}.step{font-size:11px;color:#c7c2ff;border:1px solid #9b8cff55;background:#9b8cff12;padding:5px 9px;border-radius:999px}.form-body{padding:22px}.field{margin-bottom:21px}.field:last-child{margin-bottom:0}.label-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}.label-row label,.field>label{font-size:13px;font-weight:700;color:#e8ecfa}.hint{font-size:11px;color:var(--muted)}.segmented{display:flex;flex-wrap:wrap;gap:7px}.segmented button{border:1px solid var(--line);background:#ffffff06;color:#c4cce0;border-radius:11px;padding:9px 13px;font-size:12px}.segmented button[aria-pressed=true]{background:linear-gradient(120deg,#7be7ee20,#9b8cff28);border-color:#9b8cff99;color:#fff;box-shadow:inset 0 0 0 1px #9b8cff25}.control{width:100%;border:1px solid var(--line);background:#0b1020;color:var(--text);border-radius:12px;padding:12px 13px;outline:none}.control:focus{border-color:#8e8cff;box-shadow:0 0 0 3px #8e8cff22}.control::placeholder{color:#65708a}textarea.control{min-height:115px;resize:vertical}.upload{border:1px dashed #8290b8aa;border-radius:16px;background:#ffffff05;padding:17px;display:flex;align-items:center;gap:14px;min-height:104px}.upload-icon{flex:none;width:44px;height:44px;border-radius:13px;background:#7be7ee14;color:var(--cyan);display:grid;place-items:center;font-size:22px}.upload-copy{min-width:0;flex:1}.upload-copy strong{display:block;font-size:13px}.upload-copy span{display:block;color:var(--muted);font-size:11px;margin-top:3px}.upload button{border:1px solid var(--line);background:#ffffff0b;color:#e7ecfa;border-radius:10px;padding:8px 11px;font-size:11px}.preview{display:none;align-items:center;gap:12px;margin-top:10px;padding:9px;border-radius:12px;background:#ffffff08}.preview.show{display:flex}.preview img{width:54px;height:54px;object-fit:cover;border-radius:9px}.preview span{font-size:12px;color:#dce3f6;overflow-wrap:anywhere}.preview button{margin-left:auto;background:none;border:0;color:#ffb5c6}.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}.select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#aab5ce 50%),linear-gradient(135deg,#aab5ce 50%,transparent 50%);background-position:calc(100% - 17px) 18px,calc(100% - 12px) 18px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:32px}.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.check-card{display:flex;gap:9px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:13px;background:#ffffff05}.check-card input{accent-color:#9b8cff;margin-top:3px}.check-card strong{display:block;font-size:12px}.check-card small{display:block;color:var(--muted);font-size:10px;margin-top:2px}.form-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:18px;border-top:1px solid var(--line);margin-top:22px}.primary{border:0;border-radius:12px;padding:12px 17px;font-weight:750;color:#101321;background:linear-gradient(100deg,var(--cyan),#a9a0ff);box-shadow:0 8px 25px #8e8cff35}.secondary{border:1px solid var(--line);border-radius:12px;padding:11px 14px;background:#ffffff08;color:#e8ecfa}.disabled{opacity:.42;cursor:not-allowed}.notice{font-size:11px;color:var(--warn);flex-basis:100%;margin:2px 0 0}
+    .side{display:grid;gap:18px}.status-card{padding:20px}.status-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.status-top h3{font-size:14px;margin:0}.offline{font-size:10px;color:#ffd18b;background:#ffd18b12;border:1px solid #ffd18b40;border-radius:999px;padding:5px 8px}.status-card p{font-size:12px;color:var(--muted);margin:10px 0 16px}.progress-track{height:6px;border-radius:99px;background:#ffffff10;overflow:hidden}.progress-track span{display:block;width:7%;height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:99px}.stages{display:grid;gap:13px;margin-top:18px}.stage{display:flex;align-items:center;gap:11px;color:#aeb8cf;font-size:12px}.stage-dot{width:25px;height:25px;border-radius:9px;border:1px solid var(--line);display:grid;place-items:center;font-size:11px;color:#8995b0}.stage.current{color:#f0f3ff}.stage.current .stage-dot{border-color:#9b8cff88;background:#9b8cff19;color:#c9c0ff}.side-card{padding:19px}.side-card h3{font-size:14px;margin:0 0 12px}.specs{display:grid;grid-template-columns:1fr 1fr;gap:10px}.spec{padding:11px;border:1px solid var(--line);border-radius:12px;background:#ffffff04}.spec b{display:block;font-size:15px}.spec span{color:var(--muted);font-size:10px}.warning{border:1px solid #ffd18b35;background:#ffd18b0b;color:#e9d7b8;padding:12px;border-radius:13px;font-size:11px;line-height:1.55}.drafts{margin-top:20px}.drafts-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.drafts-head h3{font-size:14px;margin:0}.drafts-head span{font-size:10px;color:var(--muted)}.draft-list{display:grid;gap:8px}.draft-empty{padding:18px;border:1px dashed var(--line);border-radius:13px;text-align:center;color:var(--muted);font-size:12px}.draft-item{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:13px;background:#ffffff05}.draft-symbol{width:34px;height:34px;border-radius:10px;background:#9b8cff18;color:#c5bdff;display:grid;place-items:center}.draft-info{min-width:0;flex:1}.draft-info b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.draft-info small{display:block;color:var(--muted);font-size:10px}.draft-item button{border:0;background:none;color:#aeb9d2;font-size:11px;padding:5px}.footer{margin-top:28px;text-align:center;color:#727d95;font-size:10px}.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#e9faff;color:#101521;padding:11px 16px;border-radius:12px;font-size:12px;font-weight:700;box-shadow:0 10px 35px #0008;transition:.2s;z-index:10}.toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(max-width:900px){.layout{grid-template-columns:1fr}.side{grid-template-columns:1fr 1fr}.side .status-card{grid-column:1/-1}.hero-note{display:none}}@media(max-width:600px){.shell{padding:16px 13px 42px}.topbar{margin-bottom:30px}.brand{font-size:13px}.brand-mark{width:37px;height:37px}.pill{display:none}.hero{margin-bottom:20px}.hero h1{font-size:35px}.panel{border-radius:17px}.panel-head,.form-body{padding:16px}.two-col,.check-grid,.side{grid-template-columns:1fr}.side .status-card{grid-column:auto}.form-actions>*{width:100%;text-align:center}.form-actions .notice{text-align:left}.upload{align-items:flex-start;flex-wrap:wrap}.upload button{margin-left:58px}.top-actions .ghost{padding:8px 10px;font-size:11px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">A</div><div>AI Animation Studio<small>Story to motion workspace</small></div></div>
+      <div class="top-actions"><span class="pill"><strong>PREVIEW</strong> · generation engine not connected</span><button class="ghost" id="downloadAll">Export drafts</button></div>
+    </header>
+    <section class="hero">
+      <div><div class="eyebrow">Create · Direct · Animate</div><h1>Turn your story into a <span>living world.</span></h1><p>Prepare a scene-led animation project with reference photos, Hindi voice direction, character continuity and your preferred video format.</p></div>
+      <div class="hero-note">Your project brief can be saved on this device. Real video generation stays locked until a genuine GPU worker is connected.</div>
+    </section>
+    <div class="layout">
+      <section class="panel" aria-labelledby="createTitle">
+        <div class="panel-head"><div><h2 id="createTitle">New animation project</h2><p>Set up the creative brief before rendering.</p></div><span class="step">STEP 01 / 03</span></div>
+        <form class="form-body" id="projectForm">
+          <div class="field">
+            <div class="label-row"><label>How would you like to start?</label><span class="hint">Choose an input</span></div>
+            <div class="segmented" id="inputModes" role="group" aria-label="Input mode">
+              <button type="button" data-mode="prompt" aria-pressed="true">Text prompt</button>
+              <button type="button" data-mode="story" aria-pressed="false">Full story</button>
+              <button type="button" data-mode="photo-story" aria-pressed="false">Photo + story</button>
+            </div>
+          </div>
+          <div class="field" id="promptField"><div class="label-row"><label for="prompt">Describe your video</label><span class="hint">Up to 2,000 characters</span></div><textarea class="control" id="prompt" maxlength="2000" placeholder="Example: An old village temple at dusk, a mysterious blue light appears near the river..."></textarea></div>
+          <div class="field" id="storyField" hidden><div class="label-row"><label for="story">Your story / script</label><span class="hint">Up to 12,000 characters</span></div><textarea class="control" id="story" maxlength="12000" placeholder="Paste your complete story or scene-by-scene script here..."></textarea></div>
+          <div class="field" id="uploadField" hidden>
+            <div class="label-row"><label>Character or scene reference photo</label><span class="hint">JPG, PNG or WebP · max 8 MB</span></div>
+            <div class="upload" id="dropZone"><div class="upload-icon">＋</div><div class="upload-copy"><strong>Drop a reference image here</strong><span>Use a clear character photo or a location reference. The image is only previewed locally in this version.</span></div><button type="button" id="choosePhoto">Choose photo</button><input type="file" id="photo" accept="image/png,image/jpeg,image/webp" hidden></div>
+            <div class="preview" id="photoPreview"><img id="previewImage" alt="Selected reference preview"><span id="photoName"></span><button type="button" id="removePhoto" aria-label="Remove photo">Remove</button></div>
+          </div>
+          <div class="field">
+            <div class="label-row"><label for="projectName">Project name</label><span class="hint">Shown in your draft list</span></div>
+            <input class="control" id="projectName" maxlength="80" placeholder="e.g. The Secret of the Black River">
+          </div>
+          <div class="field">
+            <div class="label-row"><label>Animation look</label><span class="hint">Choose one style</span></div>
+            <div class="segmented" id="styles" role="group" aria-label="Animation style"><button type="button" data-style="3D Realistic" aria-pressed="true">Realistic 3D</button><button type="button" data-style="2D Animation" aria-pressed="false">2D Animation</button></div>
+          </div>
+          <div class="two-col">
+            <div class="field"><div class="label-row"><label for="ratio">Video format</label></div><select class="control select" id="ratio"><option value="9:16">9:16 · Shorts / Reels</option><option value="16:9">16:9 · YouTube landscape</option></select></div>
+            <div class="field"><div class="label-row"><label for="duration">Target length</label></div><select class="control select" id="duration"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="180">3 minutes</option><option value="300">5 minutes (target)</option></select></div>
+          </div>
+          <div class="field">
+            <div class="label-row"><label>Voice and sound</label><span class="hint">Audio plan</span></div>
+            <div class="two-col">
+              <div><label class="hint" for="voice">Hindi voice direction</label><select class="control select" id="voice"><option>Deep, warm Hindi storyteller</option><option>Natural conversational Hindi</option><option>Dramatic cinematic Hindi</option><option>Soft emotional Hindi</option></select></div>
+              <div><label class="hint" for="music">Background music</label><select class="control select" id="music"><option value="Cinematic background score">Cinematic background score</option><option value="Emotional orchestral">Emotional orchestral</option><option value="Suspense and mystery">Suspense and mystery</option><option value="No background music">No background music</option></select></div>
+            </div>
+          </div>
+          <div class="field"><div class="check-grid">
+            <label class="check-card"><input type="checkbox" id="lipSync" checked><span><strong>Hindi lip-sync</strong><small>Plan dialogue timing for visible characters.</small></span></label>
+            <label class="check-card"><input type="checkbox" id="continuity" checked><span><strong>Character continuity</strong><small>Keep faces, clothes and locations consistent.</small></span></label>
+          </div></div>
+          <div class="form-actions">
+            <button class="primary" type="submit">Save project brief</button>
+            <button class="secondary" type="button" id="downloadCurrent">Download brief JSON</button>
+            <button class="secondary disabled" type="button" disabled title="A real video worker is not connected yet">Generate video · unavailable</button>
+            <p class="notice">Generation is intentionally disabled. This preview does not call Veo or another paid API and will not pretend to render a video.</p>
+          </div>
+        </form>
+      </section>
+      <aside class="side">
+        <section class="panel status-card">
+          <div class="status-top"><h3>Render pipeline</h3><span class="offline">WORKER OFFLINE</span></div>
+          <p>These are the planned stages. No render starts until a real video worker is configured.</p>
+          <div class="progress-track"><span></span></div>
+          <div class="stages">
+            <div class="stage current"><span class="stage-dot">1</span> Story and scene planning</div>
+            <div class="stage"><span class="stage-dot">2</span> Real 2D / 3D scene generation</div>
+            <div class="stage"><span class="stage-dot">3</span> Hindi voice and lip-sync</div>
+            <div class="stage"><span class="stage-dot">4</span> FFmpeg assembly and MP4 export</div>
+          </div>
+        </section>
+        <section class="panel side-card">
+          <h3>Project targets</h3>
+          <div class="specs"><div class="spec"><b>05:00</b><span>Maximum target length</span></div><div class="spec"><b>2 styles</b><span>2D and realistic 3D</span></div><div class="spec"><b>9:16</b><span>Vertical export</span></div><div class="spec"><b>16:9</b><span>Landscape export</span></div></div>
+        </section>
+        <section class="panel side-card">
+          <h3>Zero-budget status</h3>
+          <div class="warning">The website shell and local draft builder can run without a GPU. Real motion-video generation needs a compatible GPU worker or a paid inference provider. Free CPU hosting cannot reliably render these models.</div>
+          <div class="drafts"><div class="drafts-head"><h3>Your saved briefs</h3><span>Saved on this device only</span></div><div class="draft-list" id="draftList"><div class="draft-empty">No saved briefs yet. Create one on the left.</div></div></div>
+        </section>
+      </aside>
+    </div>
+    <footer class="footer">AI Animation Studio · Project setup preview · Account sync, admin tools and real rendering are not connected yet.</footer>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    (function(){
+      const $ = (id) => document.getElementById(id);
+      const STORE_KEY = "ai-animation-studio-drafts-v1";
+      let mode = "prompt";
+      let style = "3D Realistic";
+      let photoData = "";
+      let photoLabel = "";
+      let currentDraftId = null;
+      function toast(message){const el=$("toast");el.textContent=message;el.classList.add("show");window.clearTimeout(toast.timer);toast.timer=window.setTimeout(()=>el.classList.remove("show"),2600);}
+      function readDrafts(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}catch(_){return [];}}
+      function writeDrafts(items){localStorage.setItem(STORE_KEY,JSON.stringify(items));}
+      function escapeHtml(value){return String(value).replace(/[&<>"']/g,(ch)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+      function setMode(next){mode=next;document.querySelectorAll("#inputModes button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));$("promptField").hidden=mode==="story";$("storyField").hidden=mode==="prompt";$("uploadField").hidden=mode!=="photo-story";}
+      function setStyle(next){style=next;document.querySelectorAll("#styles button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.style===style)));}
+      function getPayload(){
+        return {id:currentDraftId||("draft-"+Date.now()),name:$("projectName").value.trim()||"Untitled animation project",mode,style,format:$("ratio").value,durationSeconds:Number($("duration").value),prompt:$("prompt").value.trim(),story:$("story").value.trim(),referencePhotoName:photoLabel,voice:$("voice").value,music:$("music").value,lipSync:$("lipSync").checked,characterContinuity:$("continuity").checked,updatedAt:new Date().toISOString()};
+      }
+      function validate(payload){
+        if(mode==="prompt"&&!payload.prompt)return "Add a video prompt first.";
+        if(mode==="story"&&!payload.story)return "Paste your story first.";
+        if(mode==="photo-story"&&!payload.story)return "Add the story for your photo project.";
+        if(mode==="photo-story"&&!photoData)return "Choose a reference photo for this project.";
+        return "";
+      }
+      function downloadJson(data,filename){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);}
+      function renderDrafts(){
+        const list=$("draftList"),items=readDrafts().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+        if(!items.length){list.innerHTML='<div class="draft-empty">No saved briefs yet. Create one on the left.</div>';return;}
+        list.innerHTML=items.map(item=>'<div class="draft-item"><div class="draft-symbol">✦</div><div class="draft-info"><b>'+escapeHtml(item.name)+'</b><small>'+escapeHtml(item.style)+' · '+escapeHtml(item.format)+' · '+Math.round(item.durationSeconds/60*10)/10+' min</small></div><button type="button" data-load="'+escapeHtml(item.id)+'">Open</button><button type="button" data-delete="'+escapeHtml(item.id)+'" aria-label="Delete '+escapeHtml(item.name)+'">×</button></div>').join("");
+      }
+      function loadDraft(id){
+        const item=readDrafts().find(d=>d.id===id);if(!item)return;
+        currentDraftId=item.id;setMode(item.mode||"prompt");setStyle(item.style||"3D Realistic");
+        $("projectName").value=item.name||"";$("prompt").value=item.prompt||"";$("story").value=item.story||"";
+        $("ratio").value=item.format||"9:16";$("duration").value=String(item.durationSeconds||30);
+        $("voice").value=item.voice||"Deep, warm Hindi storyteller";$("music").value=item.music||"Cinematic background score";
+        $("lipSync").checked=item.lipSync!==false;$("continuity").checked=item.characterContinuity!==false;
+        photoData="";photoLabel=item.referencePhotoName||"";
+        $("photoPreview").classList.remove("show");$("photo").value="";
+        toast("Draft opened. Re-select its reference photo if needed.");
+        window.scrollTo({top:0,behavior:"smooth"});
+      }
+      function saveDraft(event){
+        event.preventDefault();const payload=getPayload();const error=validate(payload);if(error){toast(error);return;}
+        const items=readDrafts();const index=items.findIndex(d=>d.id===payload.id);
+        if(index>=0)items[index]=payload;else items.unshift(payload);
+        try{writeDrafts(items.slice(0,20));currentDraftId=payload.id;renderDrafts();toast("Project brief saved on this device.");}
+        catch(_){toast("Could not save: this browser may be out of local storage.");}
+      }
+      function selectFile(file){
+        if(!file)return;
+        if(!["image/jpeg","image/png","image/webp"].includes(file.type)){toast("Please choose a JPG, PNG or WebP image.");return;}
+        if(file.size>8*1024*1024){toast("Image must be 8 MB or smaller.");return;}
+        const reader=new FileReader();reader.onload=()=>{photoData=String(reader.result||"");photoLabel=file.name;$("previewImage").src=photoData;$("photoName").textContent=file.name;$("photoPreview").classList.add("show");};reader.readAsDataURL(file);
+      }
+      document.querySelectorAll("#inputModes button").forEach(button=>button.addEventListener("click",()=>setMode(button.dataset.mode)));
+      document.querySelectorAll("#styles button").forEach(button=>button.addEventListener("click",()=>setStyle(button.dataset.style)));
+      $("projectForm").addEventListener("submit",saveDraft);
+      $("choosePhoto").addEventListener("click",()=>$("photo").click());
+      $("photo").addEventListener("change",event=>selectFile(event.target.files[0]));
+      $("dropZone").addEventListener("dragover",event=>{event.preventDefault();$("dropZone").style.borderColor="#7be7ee";});
+      $("dropZone").addEventListener("dragleave",()=>$("dropZone").style.borderColor="");
+      $("dropZone").addEventListener("drop",event=>{event.preventDefault();$("dropZone").style.borderColor="";selectFile(event.dataTransfer.files[0]);});
+      $("removePhoto").addEventListener("click",()=>{photoData="";photoLabel="";$("photo").value="";$("photoPreview").classList.remove("show");});
+      $("downloadCurrent").addEventListener("click",()=>{const payload=getPayload();const error=validate(payload);if(error){toast(error);return;}downloadJson(payload,"animation-project-brief.json");toast("Project brief downloaded.");});
+      $("downloadAll").addEventListener("click",()=>{const items=readDrafts();if(!items.length){toast("There are no saved briefs to export.");return;}downloadJson(items,"animation-studio-drafts.json");});
+      $("draftList").addEventListener("click",event=>{const load=event.target.closest("[data-load]"),del=event.target.closest("[data-delete]");if(load)loadDraft(load.dataset.load);if(del){writeDrafts(readDrafts().filter(d=>d.id!==del.dataset.delete));renderDrafts();toast("Draft deleted from this device.");}});
+      setMode("prompt");setStyle("3D Realistic");renderDrafts();
+    })();
+  </script>
+</body>
+</html>

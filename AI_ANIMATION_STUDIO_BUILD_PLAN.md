@@ -29,7 +29,7 @@ Important gaps before this can be called AI Animation Studio:
 6. Generated media is written to local server disk, which may be ephemeral on a hosted service.
 7. The original README referred to `.env.example`, but that file was not present. The server expects `public/index.html`; the frontend has now been added at that path.
 
-The API key is correctly kept on the server rather than in browser code. Preserve that security boundary.
+The API key is kept on the server rather than in browser code. Preserve that security boundary.
 
 ## Implementation progress — 2026-11-10
 
@@ -44,7 +44,9 @@ Added `public/index.html`, a responsive dark-glass project-builder shell. It cur
 
 Important limitations are displayed in the UI: saved briefs remain in the current browser/device; selected photo bytes are only previewed in the current session and must be selected again after reopening; no user account sync exists; and the Generate button is deliberately disabled. This UI does not call Veo or pretend to render video.
 
-This is a frontend shell, not a completed studio. It still needs browser/device testing and the identity, persistent queue, worker, storage, and admin layers below.
+Added a safety gate to the existing backend: Gemini text/image routes now require `ENABLE_GEMINI_API=true`; the Veo route requires `ENABLE_PAID_VIDEO_API=true` and otherwise returns 503 without sending a provider request. Added a safe `.env.example` with both flags false and a `.gitignore` for environment secrets and generated media.
+
+This is a frontend shell and a provider-call safety guard, not a completed studio. It still needs browser/device testing and the identity, persistent queue, worker, storage, and admin layers below. The legacy API quotas remain IP-based and in-memory; they are not production user quotas.
 
 ## Zero-budget decision
 
@@ -66,7 +68,7 @@ References:
 
 ## Target architecture
 
-- Frontend: React + TypeScript, responsive dark transparent-glass UI, with clear stages and no fake progress. The first static HTML shell is now in place; it can be migrated to React only if the next implementation needs justify it.
+- Frontend: React + TypeScript, responsive dark transparent-glass UI, with clear stages and no fake progress. The first static HTML shell is now in place; migrate only if the next implementation needs justify it.
 - API: Node.js/Express; verify Firebase ID tokens on every private route.
 - Identity/data: Firebase Authentication + Firestore. Store role claims for admin access.
 - Media storage: a pluggable object-storage adapter with signed upload/download URLs; do not depend on ephemeral server disk for final assets.

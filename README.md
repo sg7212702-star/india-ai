@@ -18,8 +18,9 @@ Requirements: Node.js 20+
 2. Copy `.env.example` to `.env`.
 3. Leave `ENABLE_GEMINI_API=false` and `ENABLE_PAID_VIDEO_API=false` for the zero-budget preview.
 4. Run `npm install`.
-5. Run `npm start`.
-6. Open `http://localhost:3000`.
+5. Run `npm run check` to validate server/browser JavaScript syntax.
+6. Run `npm start`.
+7. Open `http://localhost:3000`.
 
 The Google Gemini text/image routes require an explicit `ENABLE_GEMINI_API=true` plus a valid server-side API key. The Veo video route additionally requires `ENABLE_PAID_VIDEO_API=true`. Do not enable paid video generation until provider billing, authentication, quota enforcement, and queue safety have been implemented and reviewed. Never put an API key in frontend code or commit a real `.env` file.
 

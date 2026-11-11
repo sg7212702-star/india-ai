@@ -112,3 +112,20 @@ On success, mark the reservation completed. On a terminal failure before usable 
 ## First acceptance test
 
 A signed-in user can submit a short photo+prompt test, see a real queued job and honest stage updates, and download a genuine MP4 produced by the connected worker. A second simultaneous job for the same user is rejected; the third daily request is rejected after two reservations/completions. No paid API is called in zero-budget mode.
+
+
+## Implementation progress — 2026-11-11
+
+Added the first Firebase database-security foundation:
+
+- `firebase.json` now points Firebase CLI to the Firestore rules and composite indexes.
+- `firestore.rules` scopes profile, usage, job, scene and asset reads to the signed-in owner (or an admin custom claim).
+- Browser clients cannot write daily usage, jobs, scene state, asset metadata, settings or audit logs. These writes are reserved for trusted Admin SDK/API/worker code so quota enforcement cannot be bypassed from DevTools.
+- User profile creation is limited to basic fields; users cannot add an admin role or change privileged account state.
+- `firestore.indexes.json` adds initial indexes for a user's job history and filtered job list.
+- `FIREBASE_SETUP.md` documents project setup, rule deployment and the required server-side trust boundary.
+- `README.md` links to the new Firebase setup guide.
+
+These files have been committed to the default branch. They are a security/configuration foundation only: no Firebase project has been connected, no Authentication UI or Express ID-token verification has been implemented, and no quota transaction or worker exists yet. The rules should be tested with the Firebase Emulator before production deployment.
+
+Next implementation step: add Firebase Admin ID-token verification to Express, then implement a Firestore transaction for the two-per-day reservation and one-active-job lock. Keep the generation endpoint disabled until that server-side enforcement and a real worker are tested.

@@ -10,6 +10,12 @@ Project briefs are saved in the current browser's local storage and can be expor
 
 **Real video generation is intentionally disabled in the UI and on the API by default.** The repository does not yet have the required authenticated user system, durable job queue, GPU worker, multi-scene pipeline, FFmpeg assembly, or admin panel. The interface does not create a slideshow or pretend that a video was rendered.
 
+### Firebase security foundation
+
+Added `firebase.json`, `firestore.rules`, and `firestore.indexes.json` as a first database-security foundation. The rules allow users to read their own profile, usage, jobs, scenes and assets, but reserve job creation, quota writes, admin actions and audit logs for trusted server code. Admin access is based on a Firebase custom claim, not a browser-editable role field.
+
+See [Firebase setup and security notes](./FIREBASE_SETUP.md). These files do not yet connect a Firebase project, add login UI, or verify Firebase ID tokens in Express.
+
 ## Run locally
 
 Requirements: Node.js 20+

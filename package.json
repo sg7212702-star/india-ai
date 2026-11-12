@@ -2,21 +2,23 @@
   "name": "india-ai-public-starter",
   "version": "1.0.0",
   "private": true,
-  "description": "India AI - public-ready Google Gemini and Veo starter",
+  "description": "AI Animation Studio project builder and secure generation API foundation",
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js"
+    "check": "node --check server.js && node --check public/app.js && node --check lib/generation-quota.js && node --check test/generation-quota.test.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "@google/genai": "latest",
+    "dotenv": "latest",
     "express": "latest",
     "express-rate-limit": "latest",
+    "firebase-admin": "latest",
     "helmet": "latest",
-    "morgan": "latest",
-    "dotenv": "latest"
+    "morgan": "latest"
   }
 }

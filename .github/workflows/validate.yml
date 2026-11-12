@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  syntax:
+  syntax-and-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -16,5 +16,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Check server and browser JavaScript syntax
+      - name: Check JavaScript syntax
         run: npm run check
+      - name: Run quota unit tests
+        run: npm test

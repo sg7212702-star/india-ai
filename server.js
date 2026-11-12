@@ -8,6 +8,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import {
+  finishGeneration,
+  getGenerationUsage,
+  indiaDateKey,
+  reserveGenerationSlot
+} from './lib/generation-quota.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -18,9 +27,37 @@ await fs.mkdir(generatedDir, { recursive: true });
 
 const geminiApiEnabled = process.env.ENABLE_GEMINI_API === 'true';
 const paidVideoApiEnabled = process.env.ENABLE_PAID_VIDEO_API === 'true';
+const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
-if (!process.env.GEMINI_API_KEY) console.warn('GEMINI_API_KEY is not set. Add it only if you explicitly enable a Google API.');
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+function initializeFirebaseAdmin() {
+  const existing = getApps()[0];
+  if (existing) return existing;
+
+  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (rawServiceAccount) {
+    const serviceAccount = JSON.parse(rawServiceAccount);
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+    return initializeApp({
+      credential: cert(serviceAccount),
+      projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id
+    });
+  }
+
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.K_SERVICE) {
+    return initializeApp({
+      credential: applicationDefault(),
+      ...(process.env.FIREBASE_PROJECT_ID ? { projectId: process.env.FIREBASE_PROJECT_ID } : {})
+    });
+  }
+
+  return null;
+}
+
+const firebaseApp = initializeFirebaseAdmin();
+const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
+const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(morgan('tiny'));
@@ -31,25 +68,27 @@ const daily = new Map();
 const limits = {
   text: Number(process.env.DAILY_TEXT_LIMIT || 20),
   image: Number(process.env.DAILY_IMAGE_LIMIT || 3),
-  video: Number(process.env.DAILY_VIDEO_LIMIT || 1)
+  video: 2
 };
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', globalLimiter);
 
 function identity(req) {
-  return (req.headers['x-forwarded-for'] || req.ip || 'anonymous').toString().split(',')[0].trim();
+  return (req.ip || 'anonymous').toString();
 }
-function today() { return new Date().toISOString().slice(0, 10); }
+function today() {
+  return indiaDateKey();
+}
 function spend(ip, kind) {
   const key = `${ip}:${today()}`;
-  const row = daily.get(key) || { text: 0, image: 0, video: 0 };
+  const row = daily.get(key) || { text: 0, image: 0 };
   if (row[kind] >= limits[kind]) return false;
   row[kind] += 1;
   daily.set(key, row);
   return true;
 }
 function requireKey(res) {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!ai) {
     res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
     return false;
   }
@@ -62,20 +101,66 @@ function requireGeminiEnabled(res) {
   }
   return requireKey(res);
 }
+async function requireFirebaseUser(req, res, next) {
+  if (!firebaseAuth) {
+    return res.status(503).json({
+      error: 'Firebase Admin is not configured. Set FIREBASE_SERVICE_ACCOUNT_JSON or configure Google Application Default Credentials.'
+    });
+  }
+  const authorization = req.get('authorization') || '';
+  const match = authorization.match(/^Bearer\\s+(.+)$/i);
+  if (!match) return res.status(401).json({ error: 'Sign in first and send a Firebase ID token.' });
+  try {
+    req.firebaseUser = await firebaseAuth.verifyIdToken(match[1], true);
+    return next();
+  } catch {
+    return res.status(401).json({ error: 'Your sign-in token is invalid or expired. Sign in again.' });
+  }
+}
 
 app.get('/api/health', (_req, res) => res.json({
   ok: true,
   name: 'AI Animation Studio',
-  limits,
+  limits: { videoPerUserPerIndiaDay: limits.video, maxActiveVideoJobsPerUser: 1 },
   features: {
     geminiApiEnabled,
     paidVideoApiEnabled,
+    firebaseAdminConfigured: Boolean(firebaseApp),
     videoGenerationReady: false
   }
 }));
+
 app.get('/api/limits', (req, res) => {
-  const row = daily.get(`${identity(req)}:${today()}`) || { text: 0, image: 0, video: 0 };
-  res.json({ date: today(), limits, used: row, remaining: { text: Math.max(0, limits.text-row.text), image: Math.max(0, limits.image-row.image), video: Math.max(0, limits.video-row.video) } });
+  const row = daily.get(`${identity(req)}:${today()}`) || { text: 0, image: 0 };
+  res.json({
+    date: today(),
+    limits: { text: limits.text, image: limits.image },
+    used: row,
+    remaining: {
+      text: Math.max(0, limits.text - row.text),
+      image: Math.max(0, limits.image - row.image)
+    }
+  });
+});
+
+app.get('/api/auth/me', requireFirebaseUser, (req, res) => {
+  res.json({
+    uid: req.firebaseUser.uid,
+    email: req.firebaseUser.email || null,
+    emailVerified: req.firebaseUser.email_verified === true,
+    admin: req.firebaseUser.admin === true
+  });
+});
+
+app.get('/api/generation/quota', requireFirebaseUser, async (req, res) => {
+  if (!firestore) return res.status(503).json({ error: 'Firestore Admin is not configured.' });
+  try {
+    const usage = await getGenerationUsage(firestore, req.firebaseUser.uid);
+    res.json(usage);
+  } catch (error) {
+    console.error('Could not read generation quota:', error);
+    res.status(500).json({ error: 'Could not read your generation quota.' });
+  }
 });
 
 app.post('/api/text', async (req, res) => {
@@ -111,15 +196,31 @@ app.post('/api/image', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message || 'Image generation failed.' }); }
 });
 
-app.post('/api/video', async (req, res) => {
+app.post('/api/video', requireFirebaseUser, async (req, res) => {
   if (!paidVideoApiEnabled) {
-    return res.status(503).json({ error: 'Paid video generation is disabled by default. No Veo request was sent. Enable ENABLE_PAID_VIDEO_API=true only after explicitly accepting the provider cost.' });
+    return res.status(503).json({ error: 'Paid video generation is disabled by default. No Veo request was sent.' });
   }
   if (!requireKey(res)) return;
+  if (!firestore) return res.status(503).json({ error: 'Firestore Admin is required for per-user video limits.' });
+
   const prompt = String(req.body?.prompt || '').trim();
   const aspectRatio = req.body?.aspectRatio === '9:16' ? '9:16' : '16:9';
   if (!prompt || prompt.length > 6000) return res.status(400).json({ error: 'Enter a video prompt up to 6000 characters.' });
-  if (!spend(identity(req), 'video')) return res.status(429).json({ error: 'Daily video limit reached.' });
+
+  const jobId = crypto.randomUUID();
+  try {
+    await reserveGenerationSlot(firestore, {
+      uid: req.firebaseUser.uid,
+      jobId,
+      serverTimestamp: () => FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    if (error.code === 'ACTIVE_JOB_EXISTS') return res.status(409).json({ error: error.message });
+    if (error.code === 'DAILY_LIMIT_REACHED') return res.status(429).json({ error: error.message });
+    console.error('Could not reserve generation quota:', error);
+    return res.status(500).json({ error: 'Could not reserve a video generation slot.' });
+  }
+
   try {
     let operation = await ai.models.generateVideos({
       model: 'veo-3.1-generate-preview',
@@ -127,16 +228,37 @@ app.post('/api/video', async (req, res) => {
       config: { aspectRatio, numberOfVideos: 1, resolution: '720p' }
     });
     while (!operation.done) {
-      await new Promise(r => setTimeout(r, 10000));
+      await new Promise((resolve) => setTimeout(resolve, 10000));
       operation = await ai.operations.getVideosOperation({ operation });
     }
     const video = operation.response?.generatedVideos?.[0]?.video;
     if (!video) throw new Error('Veo completed without a video result.');
+
     const filename = `${crypto.randomUUID()}.mp4`;
     const output = path.join(generatedDir, filename);
     await ai.files.download({ file: video, downloadPath: output });
-    res.json({ url: `/generated/${filename}` });
-  } catch (e) { res.status(500).json({ error: e?.message || 'Video generation failed.' }); }
+    await finishGeneration(firestore, {
+      uid: req.firebaseUser.uid,
+      jobId,
+      succeeded: true,
+      serverTimestamp: () => FieldValue.serverTimestamp()
+    });
+    return res.json({ url: `/generated/${filename}`, jobId });
+  } catch (error) {
+    try {
+      await finishGeneration(firestore, {
+        uid: req.firebaseUser.uid,
+        jobId,
+        succeeded: false,
+        failureCode: 'VIDEO_PROVIDER_ERROR',
+        serverTimestamp: () => FieldValue.serverTimestamp()
+      });
+    } catch (quotaError) {
+      console.error('Could not release failed generation reservation:', quotaError);
+    }
+    console.error('Video generation failed:', error);
+    return res.status(500).json({ error: error?.message || 'Video generation failed.' });
+  }
 });
 
 app.get(/.*/, (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));

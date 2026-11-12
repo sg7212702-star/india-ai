@@ -129,3 +129,28 @@ Added the first Firebase database-security foundation:
 These files have been committed to the default branch. They are a security/configuration foundation only: no Firebase project has been connected, no Authentication UI or Express ID-token verification has been implemented, and no quota transaction or worker exists yet. The rules should be tested with the Firebase Emulator before production deployment.
 
 Next implementation step: add Firebase Admin ID-token verification to Express, then implement a Firestore transaction for the two-per-day reservation and one-active-job lock. Keep the generation endpoint disabled until that server-side enforcement and a real worker are tested.
+
+
+## Implementation progress — 2026-11-12
+
+Added a first server-side identity and quota layer:
+
+- Added the Firebase Admin SDK dependency and server credential initialization using either a server-side service-account secret or Application Default Credentials.
+- Added `requireFirebaseUser`, which accepts only a Bearer Firebase ID token and verifies it (including revocation check) before exposing the verified UID to private routes.
+- Added `GET /api/auth/me` for verified account information and custom-claim Admin status.
+- Added `GET /api/generation/quota` to read the current user's quota for the `Asia/Kolkata` calendar day.
+- Added `lib/generation-quota.js`: Firestore transaction logic reserves a maximum of two daily video slots and allows only one active job per UID. Terminal failures refund once; repeated terminal callbacks are idempotent.
+- Added Node built-in unit tests for India-date rollover, active-job exclusion, failure refund, successful usage counting, and the two-per-day cap.
+- Updated GitHub Actions to run JavaScript syntax checks and the quota test suite.
+- Updated `.env.example`, `.gitignore`, and `FIREBASE_SETUP.md` to document server-only credentials and keep service-account JSON out of Git.
+- Protected the existing opt-in Veo route with verified Firebase authentication and the transactional quota. It remains disabled by default and is still a synchronous, paid, single-clip route—not the zero-budget generation engine.
+
+Important validation boundary: the repository changes are committed, but this run has not verified a successful GitHub Actions test run or a Firebase Emulator run. The local fake-Firestore tests validate the quota service's decision logic, not Firestore's production transaction behavior. No Firebase project or browser login UI has been connected.
+
+### Remaining next steps
+
+1. Connect a Firebase project and enable Email/Password Authentication; add a browser login/signup flow using the project's public Web config.
+2. Test `firestore.rules` and concurrent quota reservations with the Firebase Emulator.
+3. Replace the synchronous provider request with a durable Firestore job queue, worker claim/lease/heartbeat and restart recovery. Keep paid Veo disabled.
+4. Add secure photo upload/storage and then scene planning, a real local/donated GPU worker, Hindi audio/lip-sync and FFmpeg assembly.
+5. Build the Admin dashboard only after custom-claim bootstrap and all admin API checks are tested.

@@ -108,7 +108,7 @@ async function requireFirebaseUser(req, res, next) {
     });
   }
   const authorization = req.get('authorization') || '';
-  const match = authorization.match(/^Bearer\\s+(.+)$/i);
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
   if (!match) return res.status(401).json({ error: 'Sign in first and send a Firebase ID token.' });
   try {
     req.firebaseUser = await firebaseAuth.verifyIdToken(match[1], true);

@@ -59,7 +59,22 @@ const firebaseApp = initializeFirebaseAdmin();
 const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
 
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      "script-src": ["'self'", "https://www.gstatic.com"],
+      "connect-src": [
+        "'self'",
+        "https://identitytoolkit.googleapis.com",
+        "https://securetoken.googleapis.com",
+        "https://www.googleapis.com",
+        "https://firebaseinstallations.googleapis.com"
+      ],
+      "frame-src": ["'self'", "https://*.firebaseapp.com"]
+    }
+  }
+}));
 app.use(morgan('tiny'));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(publicDir));
@@ -117,6 +132,18 @@ async function requireFirebaseUser(req, res, next) {
     return res.status(401).json({ error: 'Your sign-in token is invalid or expired. Sign in again.' });
   }
 }
+
+app.get('/api/config', (_req, res) => {
+  const firebase = {
+    apiKey: process.env.FIREBASE_WEB_API_KEY || '',
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || '',
+    projectId: process.env.FIREBASE_PROJECT_ID || '',
+    appId: process.env.FIREBASE_WEB_APP_ID || ''
+  };
+  const ready = Object.values(firebase).every(Boolean);
+  res.set('Cache-Control', 'no-store');
+  res.json({ firebase: ready ? firebase : null, firebaseWebConfigured: ready });
+});
 
 app.get('/api/health', (_req, res) => res.json({
   ok: true,

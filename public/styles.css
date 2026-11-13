@@ -30,3 +30,6 @@
 .auth-signed-in small{font-size:11px;color:var(--muted);margin-top:3px}
 .auth-footnote{font-size:10px;color:#8994ab;margin:10px 0 0}
 @media(max-width:700px){.auth-form{grid-template-columns:1fr}.auth-actions>*{flex:1}.auth-signed-in{align-items:flex-start;flex-direction:column}.auth-signed-in button{width:100%}}
+
+/* Preserve native hidden-state behavior when component styles define display. */
+[hidden]{display:none!important}

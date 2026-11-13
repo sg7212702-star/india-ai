@@ -101,17 +101,12 @@ async function refreshAccount(user) {
   }
 }
 
-onAuthStateChanged(
-  // Auth is initialized after the public Firebase config is fetched.
-  () => {},
-  () => {}
-);
 
 async function boot() {
   try {
     const configResponse = await fetchJson("/api/config");
     if (!configResponse.firebaseWebConfigured || !configResponse.firebase) {
-      setStatus("Firebase Web app is not configured on the server yet. Add the four FIREBASE_WEB_* environment values to enable sign-in.", "warning");
+      setStatus("Firebase Web app is not configured on the server yet. Add FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID and FIREBASE_WEB_APP_ID to enable sign-in.", "warning");
       submitButton.disabled = true;
       modeButton.disabled = true;
       forgotButton.disabled = true;

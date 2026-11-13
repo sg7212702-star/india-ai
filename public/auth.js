@@ -87,16 +87,32 @@ async function refreshAccount(user) {
 
   try {
     const token = await user.getIdToken();
-    const [profile, quota] = await Promise.all([
+    const [profileResult, quotaResult] = await Promise.allSettled([
       fetchJson("/api/auth/me", token),
       fetchJson("/api/generation/quota", token)
     ]);
-    roleBadge.textContent = profile.admin ? "ADMIN" : "MEMBER";
-    quotaLabel.textContent = `${quota.used} of ${quota.limit} generations used today · ${quota.remaining} remaining${quota.activeJobId ? " · one job is active" : ""}`;
-    setStatus("Signed in. Your account token was verified by the server.", "success");
+    const profile = profileResult.status === "fulfilled" ? profileResult.value : null;
+    const quota = quotaResult.status === "fulfilled" ? quotaResult.value : null;
+
+    roleBadge.textContent = profile ? (profile.admin ? "ADMIN" : "MEMBER") : "ACCOUNT";
+    if (quota) {
+      quotaLabel.textContent = `${quota.used} of ${quota.limit} generations used today · ${quota.remaining} remaining${quota.activeJobId ? " · one job is active" : ""}`;
+    } else {
+      const reason = quotaResult.status === "rejected" ? quotaResult.reason.message : "Quota service unavailable.";
+      quotaLabel.textContent = `Quota unavailable: ${reason}`;
+    }
+
+    if (profile && quota) {
+      setStatus("Signed in. Your account and daily quota were verified by the server.", "success");
+    } else if (profile) {
+      setStatus("Signed in and verified. The quota service still needs server-side Firestore configuration.", "warning");
+    } else {
+      const reason = profileResult.status === "rejected" ? profileResult.reason.message : "Server verification unavailable.";
+      setStatus(reason, "warning");
+    }
   } catch (error) {
     roleBadge.textContent = "ACCOUNT";
-    quotaLabel.textContent = "Signed in; server quota is unavailable until Firebase Admin and Firestore are configured.";
+    quotaLabel.textContent = "Signed in; server account services are not ready.";
     setStatus(error.message, "warning");
   }
 }

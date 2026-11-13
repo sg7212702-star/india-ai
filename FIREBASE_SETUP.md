@@ -70,3 +70,25 @@ Do not add an admin email or password to source code. After the authenticated ba
 ## Current limitation
 
 These changes add backend token verification, quota reading and a tested transactional quota service. They do not create the Firebase project, enable Authentication in the console, add browser login/signup UI, implement a durable worker queue, or generate a video. Test the Firestore rules in the Firebase Emulator before opening the database to real users.
+
+
+## 8. Browser email/password sign-in
+
+The account panel is loaded by `public/auth.js` and uses the Firebase Web SDK from Google's pinned CDN module build. It supports:
+
+- Email/password account creation and sign-in.
+- Display-name setup for new accounts.
+- Password reset email.
+- Sign-out.
+- Calling the authenticated server endpoints to show the current user's India-day quota and Admin claim.
+
+Set these public Web app values in the server environment (for example, Vercel Environment Variables):
+
+- `FIREBASE_WEB_API_KEY`
+- `FIREBASE_AUTH_DOMAIN`
+- `FIREBASE_PROJECT_ID` (also used by Firebase Admin)
+- `FIREBASE_WEB_APP_ID`
+
+The `GET /api/config` endpoint returns only these Firebase Web app identifiers. A Firebase Web API key is not an Admin credential; restrict it in Google Cloud where practical, and configure Firebase Authentication's authorized domains for the deployed hostname.
+
+The browser sign-in panel remains in setup mode until all four values are present. Even after browser sign-in works, the quota display requires Firebase Admin credentials and Firestore access on the server. Do not paste service-account JSON into the browser or GitHub.

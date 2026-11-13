@@ -6,3 +6,27 @@
     @media(max-width:900px){.layout{grid-template-columns:1fr}.side{grid-template-columns:1fr 1fr}.side .status-card{grid-column:1/-1}.hero-note{display:none}}@media(max-width:600px){.shell{padding:16px 13px 42px}.topbar{margin-bottom:30px}.brand{font-size:13px}.brand-mark{width:37px;height:37px}.pill{display:none}.hero{margin-bottom:20px}.hero h1{font-size:35px}.panel{border-radius:17px}.panel-head,.form-body{padding:16px}.two-col,.check-grid,.side{grid-template-columns:1fr}.side .status-card{grid-column:auto}.form-actions>*{width:100%;text-align:center}.form-actions .notice{text-align:left}.upload{align-items:flex-start;flex-wrap:wrap}.upload button{margin-left:58px}.top-actions .ghost{padding:8px 10px;font-size:11px}}
 
 .upload.dragging{border-color:var(--cyan);background:#7be7ee0b}
+
+
+/* Account and Firebase authentication panel */
+.auth-panel{padding:18px 20px;margin-bottom:20px}
+.auth-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.auth-heading h2{font-size:16px;margin:0}
+.auth-heading p{font-size:11px;color:var(--muted);margin:3px 0 0}
+.account-badge{font-size:10px;letter-spacing:.08em;color:var(--cyan);border:1px solid #7be7ee55;background:#7be7ee10;border-radius:999px;padding:5px 9px}
+.auth-status{font-size:12px;color:#c7d0e5;margin:12px 0}
+.auth-status[data-state=success]{color:var(--good)}
+.auth-status[data-state=warning]{color:var(--warn)}
+.auth-status[data-state=error]{color:#ffabb8}
+.auth-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
+.auth-form label{display:grid;gap:6px;font-size:11px;font-weight:700;color:#dfe5f6}
+.auth-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.auth-actions .primary,.auth-actions .secondary{padding:10px 13px;font-size:12px}
+.auth-form button:disabled,.auth-signed-in button:disabled{opacity:.45;cursor:not-allowed}
+.text-button{border:0;background:transparent;color:var(--cyan);font-size:11px;padding:8px}
+.auth-signed-in{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--line);border-radius:13px;background:#ffffff05}
+.auth-signed-in strong,.auth-signed-in small{display:block}
+.auth-signed-in strong{font-size:12px;overflow-wrap:anywhere}
+.auth-signed-in small{font-size:11px;color:var(--muted);margin-top:3px}
+.auth-footnote{font-size:10px;color:#8994ab;margin:10px 0 0}
+@media(max-width:700px){.auth-form{grid-template-columns:1fr}.auth-actions>*{flex:1}.auth-signed-in{align-items:flex-start;flex-direction:column}.auth-signed-in button{width:100%}}

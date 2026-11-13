@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check lib/generation-quota.js && node --check test/generation-quota.test.js",
+    "check": "node --check server.js && node --check public/app.js && node --check lib/generation-quota.js && node --check test/generation-quota.test.js && node --check public/auth.js",
     "test": "node --test"
   },
   "engines": {

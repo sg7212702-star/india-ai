@@ -14,6 +14,34 @@
       <div class="brand"><div class="brand-mark">A</div><div>AI Animation Studio<small>Story to motion workspace</small></div></div>
       <div class="top-actions"><span class="pill"><strong>PREVIEW</strong> · generation engine not connected</span><button class="ghost" id="downloadAll">Export drafts</button></div>
     </header>
+    <section class="auth-panel panel" aria-labelledby="accountTitle">
+      <div class="auth-heading">
+        <div><h2 id="accountTitle">Your account</h2><p>Sign in to see your private generation quota.</p></div>
+        <span class="account-badge" id="authRole" hidden>MEMBER</span>
+      </div>
+      <p class="auth-status" id="authStatus" role="status" aria-live="polite">Checking Firebase configuration…</p>
+      <form id="authForm" class="auth-form">
+        <label id="authNameField" hidden for="authName">Display name
+          <input class="control" id="authName" maxlength="80" autocomplete="name" placeholder="Your name">
+        </label>
+        <label for="authEmail">Email address
+          <input class="control" id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+        </label>
+        <label for="authPassword">Password
+          <input class="control" id="authPassword" type="password" minlength="6" autocomplete="current-password" required placeholder="At least 6 characters">
+        </label>
+        <div class="auth-actions">
+          <button class="primary" id="authSubmit" type="submit" disabled>Sign in</button>
+          <button class="secondary" id="authModeToggle" type="button" disabled>Create account</button>
+          <button class="text-button" id="authForgot" type="button" disabled>Forgot password?</button>
+        </div>
+      </form>
+      <div id="authSignedIn" class="auth-signed-in" hidden>
+        <div><strong id="authAccount"></strong><small id="authQuota">Loading your quota…</small></div>
+        <button class="secondary" id="authLogout" type="button">Sign out</button>
+      </div>
+      <p class="auth-footnote">Firebase Web configuration is public project metadata. Admin credentials remain server-only and must never be placed in this page.</p>
+    </section>
     <section class="hero">
       <div><div class="eyebrow">Create · Direct · Animate</div><h1>Turn your story into a <span>living world.</span></h1><p>Prepare a scene-led animation project with reference photos, Hindi voice direction, character continuity and your preferred video format.</p></div>
       <div class="hero-note">Your project brief can be saved on this device. Real video generation stays locked until a genuine GPU worker is connected.</div>
@@ -95,5 +123,6 @@
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/app.js" defer></script>
+  <script type="module" src="/auth.js"></script>
 </body>
 </html>

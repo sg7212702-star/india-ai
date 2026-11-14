@@ -67,6 +67,48 @@ test('reserves one slot and blocks a second simultaneous job', async () => {
   assert.equal(usage.canStart, false);
 });
 
+test('keeps the one-active-job lock across India midnight', async () => {
+  const db = new FakeFirestore();
+  const beforeMidnight = new Date('2026-11-12T18:20:00Z'); // 23:50 in India
+  const afterMidnight = new Date('2026-11-12T18:40:00Z'); // 00:10 in India
+
+  await reserveGenerationSlot(db, {
+    uid: 'user-midnight',
+    jobId: 'job-before-midnight',
+    now: beforeMidnight,
+    serverTimestamp: timestamp
+  });
+
+  const nextDayUsage = await getGenerationUsage(db, 'user-midnight', { now: afterMidnight });
+  assert.equal(nextDayUsage.date, '2026-11-13');
+  assert.equal(nextDayUsage.used, 0);
+  assert.equal(nextDayUsage.activeJobId, 'job-before-midnight');
+  assert.equal(nextDayUsage.canStart, false);
+
+  await assert.rejects(
+    reserveGenerationSlot(db, {
+      uid: 'user-midnight',
+      jobId: 'job-after-midnight',
+      now: afterMidnight,
+      serverTimestamp: timestamp
+    }),
+    (error) => error.code === 'ACTIVE_JOB_EXISTS'
+  );
+
+  await finishGeneration(db, {
+    uid: 'user-midnight',
+    jobId: 'job-before-midnight',
+    succeeded: true,
+    now: afterMidnight,
+    serverTimestamp: timestamp
+  });
+
+  const releasedUsage = await getGenerationUsage(db, 'user-midnight', { now: afterMidnight });
+  assert.equal(releasedUsage.activeJobId, null);
+  assert.equal(releasedUsage.canStart, true);
+  assert.equal(await getGenerationUsage(db, 'user-midnight', { now: beforeMidnight }).then((usage) => usage.used), 1);
+});
+
 test('refunds a failed generation once and clears the active lock', async () => {
   const db = new FakeFirestore();
   await reserveGenerationSlot(db, { uid: 'user-2', jobId: 'job-fail', now: fixedNow, serverTimestamp: timestamp });

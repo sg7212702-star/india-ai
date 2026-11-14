@@ -4,17 +4,26 @@ A work-in-progress project builder for story-led 2D and realistic 3D animation.
 
 ## Current status
 
-The responsive project-builder shell is available at `public/index.html`, with external `public/styles.css` and `public/app.js` assets so the page works with the server's Helmet content-security policy. It lets you prepare a brief using a text prompt, story, or photo + story; choose 2D/realistic 3D, 9:16/16:9, target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
+The responsive project-builder shell is available at `public/index.html`, with external `public/styles.css` and `public/app.js` assets. It can prepare a brief from a text prompt, a full story, or a reference photo plus story; choose 2D or realistic 3D, 9:16 or 16:9, a target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
 
-Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not synced to an account or server. A selected reference photo is previewed locally only and must be selected again after reopening a saved brief.
+Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not yet synced to a user account or server. A selected reference photo is previewed locally only and must be selected again after reopening a saved brief.
 
-**Real video generation is intentionally disabled in the UI and on the API by default.** The repository does not yet have the required authenticated user system, durable job queue, GPU worker, multi-scene pipeline, FFmpeg assembly, or admin panel. The interface does not create a slideshow or pretend that a video was rendered.
+## Account and quota foundation
 
-### Firebase security foundation
+- `public/auth.js` provides Firebase email/password sign-up, sign-in, password reset, auth-state handling, and sign-out.
+- The browser obtains Firebase Web configuration from `/api/config`; no Admin service-account credential is exposed to the browser.
+- Express verifies Firebase ID tokens for `/api/auth/me` and `/api/generation/quota`.
+- Firestore quota reservations are transactional: two successful video generations are allowed per user per Asia/Kolkata calendar day, and failed reservations are refunded once.
+- A user-level `activeGenerationJobId` lock now prevents a second job from starting while the previous job is still active, including when a job crosses midnight.
+- Firestore rules keep quota writes, job creation/state changes, admin actions, and audit logs server-only. Admin role checks use Firebase custom claims.
 
-Added `firebase.json`, `firestore.rules`, and `firestore.indexes.json` as a first database-security foundation. The rules allow users to read their own profile, usage, jobs, scenes and assets, but reserve job creation, quota writes, admin actions and audit logs for trusted server code. Admin access is based on a Firebase custom claim, not a browser-editable role field.
+This foundation still needs a real Firebase project, Email/Password sign-in enablement, Web app configuration, and server-side Firebase Admin credentials before live account features can work. Follow [FIREBASE_SETUP.md](./FIREBASE_SETUP.md).
 
-See [Firebase setup and security notes](./FIREBASE_SETUP.md). These files do not yet connect a Firebase project, add login UI, or verify Firebase ID tokens in Express.
+## Video generation status
+
+**Real video generation is intentionally disabled by default.** The Generate control remains unavailable and `/api/health` reports `videoGenerationReady: false`. No slideshow is substituted for a real motion-video result.
+
+The repository does not yet include a durable queue, GPU worker, multi-scene video pipeline, Hindi TTS/lip-sync integration, asset storage, FFmpeg assembly, or admin dashboard. The current optional Veo route is a synchronous provider integration guarded by `ENABLE_PAID_VIDEO_API=true`; keep it disabled. Do not enable it for this zero-budget project.
 
 ## Run locally
 
@@ -22,26 +31,14 @@ Requirements: Node.js 20+
 
 1. Clone this repository.
 2. Copy `.env.example` to `.env`.
-3. Leave `ENABLE_GEMINI_API=false` and `ENABLE_PAID_VIDEO_API=false` for the zero-budget preview.
+3. Keep `ENABLE_GEMINI_API=false` and `ENABLE_PAID_VIDEO_API=false`.
 4. Run `npm install`.
-5. Run `npm run check` to validate server/browser JavaScript syntax.
-6. Run `npm start`.
-7. Open `http://localhost:3000`.
+5. Run `npm run check`.
+6. Run `npm test`.
+7. Run `npm start` and open `http://localhost:3000`.
 
-The Google Gemini text/image routes require an explicit `ENABLE_GEMINI_API=true` plus a valid server-side API key. The Veo video route additionally requires `ENABLE_PAID_VIDEO_API=true`. Do not enable paid video generation until provider billing, authentication, quota enforcement, and queue safety have been implemented and reviewed. Never put an API key in frontend code or commit a real `.env` file.
+Never put API keys or Firebase Admin credentials in frontend code or commit a real `.env` file.
 
-The current legacy API limits are in-memory and IP-based. They are not the required two-per-user daily quota and must not be treated as production access control.
+The legacy text/image limits are in-memory and IP-based. They are not production user quotas. Free CPU hosting can serve the website and lightweight API work, but it cannot reliably run modern video-generation models. A genuine video worker requires compatible GPU compute; no free hosted GPU is assumed.
 
-## Zero-budget policy
-
-Do not assume a free hosted GPU. Free CPU hosting is suitable for the website shell and lightweight API work, not reliable inference for modern video-generation models. A real video worker must be connected and tested before the Generate action is enabled. Paid providers must remain explicitly opt-in.
-
-## Planned features
-
-- Firebase Authentication, Firestore profiles, user dashboard and admin panel.
-- Two video-generation reservations per user per day, with only one active job per user.
-- Durable scene/job queue and asset storage.
-- Genuine multi-clip video generation, Hindi narration, lip-sync where supported, background music, character continuity, and FFmpeg MP4 export.
-- 9:16 and 16:9 exports, with projects targeting up to approximately five minutes.
-
-See [AI Animation Studio Build Plan](./AI_ANIMATION_STUDIO_BUILD_PLAN.md) for the technical audit, data model, zero-budget constraints, and implementation sequence.
+See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) and [AI_ANIMATION_STUDIO_BUILD_PLAN.md](./AI_ANIMATION_STUDIO_BUILD_PLAN.md) for setup, security, and the implementation roadmap.

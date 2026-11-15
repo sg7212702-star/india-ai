@@ -21,7 +21,7 @@ The Express server verifies Firebase ID tokens with the Admin SDK. Configure exa
 - A supported Google Cloud runtime: use its attached service account / Application Default Credentials.
 - Another host: store the minified service-account JSON in that host's encrypted secret manager and inject it as `FIREBASE_SERVICE_ACCOUNT_JSON`. Also set `FIREBASE_PROJECT_ID`.
 
-Never add the service-account JSON to `.env.example`, browser JavaScript, GitHub commits, or a public deployment variable. Restrict the service account to the minimum required Firebase Authentication and Firestore permissions.
+Never add the service-account JSON to `.env.example`, browser JavaScript, GitHub commits, or a public deployment variable. Restrict the service account to the minimum required Firebase Authentication and Firestore permissions. Keep `GENERATION_QUEUE_ENABLED=false` until the worker is deployed.
 
 ## 3. Configure the browser sign-in panel
 
@@ -78,9 +78,10 @@ These rules are service-level unit tested. They are not a substitute for Firesto
 
 `lib/generation-queue.js` provides the primitives a separate worker process will use:
 
-- `getClaimableGenerationJobIds`: discovers queued jobs and processing jobs with expired leases.
+- `getClaimableGenerationJobIds`: discovers queued jobs in FIFO order and processing jobs with expired leases.
 - `claimGenerationJob`: transactionally claims a queued job or takes over an expired lease.
 - `renewGenerationLease`: heartbeat that only the current worker owner can renew.
+- `finishGeneration`: requires the current worker ID, so a worker whose lease was replaced cannot finish or refund another worker's job.
 - `getGenerationJob`: reads a job only when its UID matches the verified account.
 
 Worker leases default to two minutes and may be configured between 10 seconds and 15 minutes. A worker must heartbeat before its lease expires. If it stops, another worker can reclaim the job. The worker must make output writes idempotent so a retry does not publish duplicate assets.
@@ -93,7 +94,7 @@ Do not add an admin email or password to source code. Use a one-time private ser
 
 ## 9. Zero-budget and generation limitations
 
-- Keep `ENABLE_GEMINI_API=false`, `ENABLE_PAID_VIDEO_API=false`, and `GENERATION_QUEUE_ENABLED=false`.
+- Keep `ENABLE_GEMINI_API=false` and `GENERATION_QUEUE_ENABLED=false`.
 - The project builder and account UI can be hosted on a free CPU web tier, subject to that host's current limits.
 - Free CPU hosting cannot reliably run current high-quality video-generation models.
 - A genuine motion-video worker needs compatible GPU compute. No free hosted GPU is assumed.

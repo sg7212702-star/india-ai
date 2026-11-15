@@ -73,9 +73,9 @@ class FakeDocument {
 const now = new Date('2026-11-15T05:00:00Z');
 const stamp = () => new Date(now);
 
-async function createQueuedJob(db, jobId = 'job-queue-1') {
+async function createQueuedJob(db, jobId = 'job-queue-1', uid = 'user-queue') {
   await reserveGenerationSlot(db, {
-    uid: 'user-queue',
+    uid,
     jobId,
     now,
     serverTimestamp: stamp,
@@ -126,8 +126,8 @@ test('an expired worker lease can be reclaimed and increments attempts', async (
 
 test('queue discovery returns queued jobs and only expired processing jobs', async () => {
   const db = new FakeFirestore();
-  await createQueuedJob(db, 'job-queued');
-  await createQueuedJob(db, 'job-to-claim');
+  await createQueuedJob(db, 'job-queued', 'user-queued');
+  await createQueuedJob(db, 'job-to-claim', 'user-processing');
   await claimGenerationJob(db, { jobId: 'job-to-claim', workerId: 'worker-a', now, leaseMs: 10_000, serverTimestamp: stamp });
   const ids = await getClaimableGenerationJobIds(db, { now: new Date(now.getTime() + 11_000), limit: 10 });
   assert.deepEqual(new Set(ids), new Set(['job-queued', 'job-to-claim']));

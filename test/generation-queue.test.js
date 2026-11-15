@@ -124,6 +124,18 @@ test('an expired worker lease can be reclaimed and increments attempts', async (
   assert.equal(recovered.attempts, 2);
 });
 
+test('a worker whose lease was replaced cannot finish the job', async () => {
+  const db = new FakeFirestore();
+  await createQueuedJob(db);
+  await claimGenerationJob(db, { jobId: 'job-queue-1', workerId: 'worker-old', now, leaseMs: 10_000, serverTimestamp: stamp });
+  await claimGenerationJob(db, { jobId: 'job-queue-1', workerId: 'worker-new', now: new Date(now.getTime() + 11_000), leaseMs: 60_000, serverTimestamp: stamp });
+
+  await assert.rejects(
+    finishGeneration(db, { uid: 'user-queue', jobId: 'job-queue-1', workerId: 'worker-old', succeeded: true, now: new Date(now.getTime() + 12_000), serverTimestamp: stamp }),
+    (error) => error.code === 'WORKER_OWNERSHIP_LOST'
+  );
+});
+
 test('queue discovery returns queued jobs and only expired processing jobs', async () => {
   const db = new FakeFirestore();
   await createQueuedJob(db, 'job-queued', 'user-queued');

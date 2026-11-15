@@ -154,3 +154,17 @@ Important validation boundary: the repository changes are committed, but this ru
 3. Replace the synchronous provider request with a durable Firestore job queue, worker claim/lease/heartbeat and restart recovery. Keep paid Veo disabled.
 4. Add secure photo upload/storage and then scene planning, a real local/donated GPU worker, Hindi audio/lip-sync and FFmpeg assembly.
 5. Build the Admin dashboard only after custom-claim bootstrap and all admin API checks are tested.
+
+
+## Implementation progress — 2026-11-15
+
+Added a first durable-queue foundation without turning on job intake:
+
+- New reservations now create `queued` Firestore job documents and retain a validated creative brief.
+- Added `lib/generation-queue.js` with queue discovery, transactional worker claims, 2-minute default leases, worker heartbeats, expired-lease takeover, and owner-only job status reads.
+- Added unit tests for queued reservations, exclusive claims, heartbeat ownership, lease recovery, queue discovery, and terminal lease cleanup.
+- Added `POST /api/generation/jobs` and `GET /api/generation/jobs/:jobId`. Job intake is guarded by `GENERATION_QUEUE_ENABLED=false` by default.
+- Retired the old synchronous Veo `POST /api/video` route with HTTP 410 so it cannot accidentally make a paid provider call.
+- Updated README and Firebase setup instructions.
+
+Safety boundary: the queue primitives are not a running worker. No worker process, GPU model, private asset storage, scene planner, Hindi TTS/lip-sync, FFmpeg assembly, or admin dashboard has been deployed. Keep `GENERATION_QUEUE_ENABLED=false` until a real worker is available and tested. Queue unit tests do not replace Firestore Emulator or production concurrency tests.

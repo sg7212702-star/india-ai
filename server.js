@@ -12,11 +12,11 @@ import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import {
-  finishGeneration,
   getGenerationUsage,
   indiaDateKey,
   reserveGenerationSlot
 } from './lib/generation-quota.js';
+import { getGenerationJob } from './lib/generation-queue.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -26,7 +26,7 @@ const generatedDir = path.join(publicDir, 'generated');
 await fs.mkdir(generatedDir, { recursive: true });
 
 const geminiApiEnabled = process.env.ENABLE_GEMINI_API === 'true';
-const paidVideoApiEnabled = process.env.ENABLE_PAID_VIDEO_API === 'true';
+const generationQueueEnabled = process.env.GENERATION_QUEUE_ENABLED === 'true';
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
 function initializeFirebaseAdmin() {
@@ -151,7 +151,7 @@ app.get('/api/health', (_req, res) => res.json({
   limits: { videoPerUserPerIndiaDay: limits.video, maxActiveVideoJobsPerUser: 1 },
   features: {
     geminiApiEnabled,
-    paidVideoApiEnabled,
+    generationQueueEnabled,
     firebaseAdminConfigured: Boolean(firebaseApp),
     videoGenerationReady: false
   }
@@ -223,70 +223,100 @@ app.post('/api/image', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message || 'Image generation failed.' }); }
 });
 
-app.post('/api/video', requireFirebaseUser, async (req, res) => {
-  if (!paidVideoApiEnabled) {
-    return res.status(503).json({ error: 'Paid video generation is disabled by default. No Veo request was sent.' });
-  }
-  if (!requireKey(res)) return;
-  if (!firestore) return res.status(503).json({ error: 'Firestore Admin is required for per-user video limits.' });
+function normalizeGenerationRequest(body = {}) {
+  const prompt = String(body.prompt || '').trim();
+  const story = String(body.story || '').trim();
+  const mode = ['prompt', 'story', 'photo-story'].includes(body.mode) ? body.mode : (story ? 'story' : 'prompt');
+  const title = String(body.title || 'Untitled animation').trim().slice(0, 80);
+  const style = body.style === '2D Animation' ? '2D Animation' : '3D Realistic';
+  const aspectRatio = body.aspectRatio === '16:9' ? '16:9' : '9:16';
+  const durationSeconds = Number(body.durationSeconds || 30);
+  const allowedDurations = new Set([30, 60, 120, 180, 300]);
 
-  const prompt = String(req.body?.prompt || '').trim();
-  const aspectRatio = req.body?.aspectRatio === '9:16' ? '9:16' : '16:9';
-  if (!prompt || prompt.length > 6000) return res.status(400).json({ error: 'Enter a video prompt up to 6000 characters.' });
+  if (mode === 'prompt' && !prompt) throw Object.assign(new Error('Enter a video prompt.'), { status: 400 });
+  if (mode === 'story' && !story) throw Object.assign(new Error('Enter a story or script.'), { status: 400 });
+  if (mode === 'photo-story') {
+    throw Object.assign(new Error('Photo + story generation is not available until private image storage is connected.'), { status: 503 });
+  }
+  if (prompt.length > 6000 || story.length > 12000) {
+    throw Object.assign(new Error('Prompt or story is longer than the allowed limit.'), { status: 400 });
+  }
+  if (!allowedDurations.has(durationSeconds)) {
+    throw Object.assign(new Error('Choose a supported duration: 30, 60, 120, 180 or 300 seconds.'), { status: 400 });
+  }
+
+  return {
+    title,
+    mode,
+    prompt,
+    story,
+    style,
+    aspectRatio,
+    durationSeconds,
+    voiceDirection: String(body.voiceDirection || 'Deep, warm Hindi storyteller').slice(0, 120),
+    music: String(body.music || 'Cinematic background score').slice(0, 120),
+    lipSync: body.lipSync !== false,
+    characterContinuity: body.characterContinuity !== false
+  };
+}
+
+app.post('/api/generation/jobs', requireFirebaseUser, async (req, res) => {
+  if (!generationQueueEnabled) {
+    return res.status(503).json({
+      error: 'Generation queue is not accepting jobs yet. The durable worker must be deployed and tested first.'
+    });
+  }
+  if (!firestore) return res.status(503).json({ error: 'Firestore Admin is required for generation jobs.' });
+
+  let request;
+  try {
+    request = normalizeGenerationRequest(req.body);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
 
   const jobId = crypto.randomUUID();
   try {
-    await reserveGenerationSlot(firestore, {
+    const reservation = await reserveGenerationSlot(firestore, {
       uid: req.firebaseUser.uid,
       jobId,
+      request,
       serverTimestamp: () => FieldValue.serverTimestamp()
+    });
+    return res.status(202).json({
+      jobId,
+      status: 'queued',
+      quota: reservation,
+      message: 'Your project brief is queued. No video is generated until a compatible worker is online.'
     });
   } catch (error) {
     if (error.code === 'ACTIVE_JOB_EXISTS') return res.status(409).json({ error: error.message });
     if (error.code === 'DAILY_LIMIT_REACHED') return res.status(429).json({ error: error.message });
-    console.error('Could not reserve generation quota:', error);
-    return res.status(500).json({ error: 'Could not reserve a video generation slot.' });
-  }
-
-  try {
-    let operation = await ai.models.generateVideos({
-      model: 'veo-3.1-generate-preview',
-      prompt,
-      config: { aspectRatio, numberOfVideos: 1, resolution: '720p' }
-    });
-    while (!operation.done) {
-      await new Promise((resolve) => setTimeout(resolve, 10000));
-      operation = await ai.operations.getVideosOperation({ operation });
-    }
-    const video = operation.response?.generatedVideos?.[0]?.video;
-    if (!video) throw new Error('Veo completed without a video result.');
-
-    const filename = `${crypto.randomUUID()}.mp4`;
-    const output = path.join(generatedDir, filename);
-    await ai.files.download({ file: video, downloadPath: output });
-    await finishGeneration(firestore, {
-      uid: req.firebaseUser.uid,
-      jobId,
-      succeeded: true,
-      serverTimestamp: () => FieldValue.serverTimestamp()
-    });
-    return res.json({ url: `/generated/${filename}`, jobId });
-  } catch (error) {
-    try {
-      await finishGeneration(firestore, {
-        uid: req.firebaseUser.uid,
-        jobId,
-        succeeded: false,
-        failureCode: 'VIDEO_PROVIDER_ERROR',
-        serverTimestamp: () => FieldValue.serverTimestamp()
-      });
-    } catch (quotaError) {
-      console.error('Could not release failed generation reservation:', quotaError);
-    }
-    console.error('Video generation failed:', error);
-    return res.status(500).json({ error: error?.message || 'Video generation failed.' });
+    console.error('Could not enqueue generation job:', error);
+    return res.status(500).json({ error: 'Could not add your project to the generation queue.' });
   }
 });
+
+app.get('/api/generation/jobs/:jobId', requireFirebaseUser, async (req, res) => {
+  if (!firestore) return res.status(503).json({ error: 'Firestore Admin is not configured.' });
+  try {
+    const job = await getGenerationJob(firestore, {
+      uid: req.firebaseUser.uid,
+      jobId: req.params.jobId
+    });
+    return res.json(job);
+  } catch (error) {
+    if (error.code === 'JOB_NOT_FOUND') return res.status(404).json({ error: 'Generation job was not found.' });
+    console.error('Could not read generation job:', error);
+    return res.status(500).json({ error: 'Could not read generation job status.' });
+  }
+});
+
+// The old synchronous Veo endpoint is deliberately retired. All future renders
+// must use the durable queue and an explicitly configured worker.
+app.post('/api/video', (_req, res) => res.status(410).json({
+  error: 'The synchronous video endpoint has been retired. Use /api/generation/jobs after the queue worker is deployed.'
+}));
 
 app.get(/.*/, (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 app.listen(port, () => console.log(`AI Animation Studio running on port ${port}`));

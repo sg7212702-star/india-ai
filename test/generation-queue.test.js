@@ -137,7 +137,7 @@ test('terminal completion releases worker lease metadata', async () => {
   const db = new FakeFirestore();
   await createQueuedJob(db);
   await claimGenerationJob(db, { jobId: 'job-queue-1', workerId: 'worker-a', now, serverTimestamp: stamp });
-  await finishGeneration(db, { uid: 'user-queue', jobId: 'job-queue-1', succeeded: true, now, serverTimestamp: stamp });
+  await finishGeneration(db, { uid: 'user-queue', jobId: 'job-queue-1', workerId: 'worker-a', succeeded: true, now, serverTimestamp: stamp });
   const job = (await db.collection('jobs').doc('job-queue-1').get()).data();
   assert.equal(job.status, 'completed');
   assert.equal(job.workerId, null);

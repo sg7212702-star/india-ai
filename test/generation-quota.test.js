@@ -6,6 +6,7 @@ import {
   indiaDateKey,
   reserveGenerationSlot
 } from '../lib/generation-quota.js';
+import { claimGenerationJob } from '../lib/generation-queue.js';
 
 class FakeFirestore {
   constructor() { this.data = new Map(); }
@@ -78,6 +79,13 @@ test('keeps the one-active-job lock across India midnight', async () => {
     now: beforeMidnight,
     serverTimestamp: timestamp
   });
+  await claimGenerationJob(db, {
+    jobId: 'job-before-midnight',
+    workerId: 'worker-midnight',
+    now: beforeMidnight,
+    leaseMs: 900_000,
+    serverTimestamp: timestamp
+  });
 
   const nextDayUsage = await getGenerationUsage(db, 'user-midnight', { now: afterMidnight });
   assert.equal(nextDayUsage.date, '2026-11-13');
@@ -98,6 +106,7 @@ test('keeps the one-active-job lock across India midnight', async () => {
   await finishGeneration(db, {
     uid: 'user-midnight',
     jobId: 'job-before-midnight',
+    workerId: 'worker-midnight',
     succeeded: true,
     now: afterMidnight,
     serverTimestamp: timestamp
@@ -112,8 +121,9 @@ test('keeps the one-active-job lock across India midnight', async () => {
 test('refunds a failed generation once and clears the active lock', async () => {
   const db = new FakeFirestore();
   await reserveGenerationSlot(db, { uid: 'user-2', jobId: 'job-fail', now: fixedNow, serverTimestamp: timestamp });
-  assert.equal(await finishGeneration(db, { uid: 'user-2', jobId: 'job-fail', succeeded: false, now: fixedNow, serverTimestamp: timestamp, failureCode: 'PROVIDER_ERROR' }), true);
-  assert.equal(await finishGeneration(db, { uid: 'user-2', jobId: 'job-fail', succeeded: false, now: fixedNow, serverTimestamp: timestamp }), false);
+  await claimGenerationJob(db, { jobId: 'job-fail', workerId: 'worker-fail', now: fixedNow, serverTimestamp: timestamp });
+  assert.equal(await finishGeneration(db, { uid: 'user-2', jobId: 'job-fail', workerId: 'worker-fail', succeeded: false, now: fixedNow, serverTimestamp: timestamp, failureCode: 'PROVIDER_ERROR' }), true);
+  assert.equal(await finishGeneration(db, { uid: 'user-2', jobId: 'job-fail', workerId: 'worker-fail', succeeded: false, now: fixedNow, serverTimestamp: timestamp }), false);
   const usage = await getGenerationUsage(db, 'user-2', { now: fixedNow });
   assert.equal(usage.used, 0);
   assert.equal(usage.activeJobId, null);
@@ -124,7 +134,9 @@ test('keeps successful generations counted and enforces two per India day', asyn
   const db = new FakeFirestore();
   for (const jobId of ['job-a', 'job-b']) {
     await reserveGenerationSlot(db, { uid: 'user-3', jobId, now: fixedNow, serverTimestamp: timestamp });
-    await finishGeneration(db, { uid: 'user-3', jobId, succeeded: true, now: fixedNow, serverTimestamp: timestamp });
+    const workerId = `worker-${jobId}`;
+    await claimGenerationJob(db, { jobId, workerId, now: fixedNow, serverTimestamp: timestamp });
+    await finishGeneration(db, { uid: 'user-3', jobId, workerId, succeeded: true, now: fixedNow, serverTimestamp: timestamp });
   }
   const usage = await getGenerationUsage(db, 'user-3', { now: fixedNow });
   assert.equal(usage.used, 2);

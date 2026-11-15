@@ -32,17 +32,30 @@ class FakeFirestore {
 class FakeCollection {
   constructor(db, path) { this.db = db; this.path = path; }
   doc(id) { return new FakeDocument(this.db, `${this.path}/${id}`); }
-  where(field, operator, value) { return new FakeQuery(this.db, this.path, field, operator, value); }
+  where(field, operator, value) { return new FakeQuery(this.db, this.path, [{ field, operator, value }]); }
 }
 class FakeQuery {
-  constructor(db, path, field, operator, value, count = 10) {
-    Object.assign(this, { db, path, field, operator, value, count });
+  constructor(db, path, filters, count = 10) {
+    Object.assign(this, { db, path, filters, count });
   }
-  limit(count) { return new FakeQuery(this.db, this.path, this.field, this.operator, this.value, count); }
+  where(field, operator, value) {
+    return new FakeQuery(this.db, this.path, [...this.filters, { field, operator, value }], this.count);
+  }
+  limit(count) { return new FakeQuery(this.db, this.path, this.filters, count); }
   async get() {
     const prefix = `${this.path}/`;
+    const matches = (data, filter) => {
+      const actual = data[filter.field];
+      if (filter.operator === '==') return actual === filter.value;
+      if (filter.operator === '<=') {
+        const left = actual instanceof Date ? actual.getTime() : actual?.toMillis?.() ?? 0;
+        const right = filter.value instanceof Date ? filter.value.getTime() : filter.value?.toMillis?.() ?? 0;
+        return left > 0 && left <= right;
+      }
+      return false;
+    };
     const docs = [...this.db.data.entries()]
-      .filter(([path, data]) => path.startsWith(prefix) && !path.slice(prefix.length).includes('/') && data[this.field] === this.value)
+      .filter(([path, data]) => path.startsWith(prefix) && !path.slice(prefix.length).includes('/') && this.filters.every((filter) => matches(data, filter)))
       .slice(0, this.count)
       .map(([path, data]) => ({ id: path.slice(prefix.length), data: () => structuredClone(data) }));
     return { docs };

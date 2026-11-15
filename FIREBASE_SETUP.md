@@ -1,6 +1,6 @@
-# Firebase foundation setup
+# Firebase and generation queue setup
 
-This repository now has a Firestore security baseline plus server-side Firebase ID-token verification and a transactional per-user video quota service. It still does **not** include a browser sign-in screen, a durable worker queue, or a free video-generation engine.
+This repository includes a Firestore security baseline, Firebase email/password browser sign-in, server-side Firebase ID-token verification, a transactional daily quota, and durable queue/lease primitives. It does **not** include a running GPU worker or a video-generation model.
 
 ## 1. Create or select a Firebase project
 
@@ -21,11 +21,24 @@ The Express server verifies Firebase ID tokens with the Admin SDK. Configure exa
 - A supported Google Cloud runtime: use its attached service account / Application Default Credentials.
 - Another host: store the minified service-account JSON in that host's encrypted secret manager and inject it as `FIREBASE_SERVICE_ACCOUNT_JSON`. Also set `FIREBASE_PROJECT_ID`.
 
-Never add the service-account JSON to `.env.example`, browser JavaScript, GitHub commits, or a public deployment variable. Restrict the service account to the minimum required Firebase Authentication and Firestore permissions. Keep `ENABLE_PAID_VIDEO_API=false`.
+Never add the service-account JSON to `.env.example`, browser JavaScript, GitHub commits, or a public deployment variable. Restrict the service account to the minimum required Firebase Authentication and Firestore permissions.
 
-## 3. Deploy the Firestore rules and indexes
+## 3. Configure the browser sign-in panel
 
-Install the Firebase CLI locally, sign in, select the project, then deploy only the database configuration:
+Set these Firebase Web app values in the server environment:
+
+- `FIREBASE_WEB_API_KEY`
+- `FIREBASE_AUTH_DOMAIN`
+- `FIREBASE_PROJECT_ID` (also used by Firebase Admin)
+- `FIREBASE_WEB_APP_ID`
+
+The browser account panel supports email/password account creation, sign-in, password reset, and sign-out. The server returns only the public Firebase Web app identifiers from `GET /api/config`. Configure Firebase Authentication's authorized domains for the deployed hostname.
+
+The quota display also needs Firebase Admin credentials and Firestore access on the server. A successful browser sign-in alone does not prove that server-side account services are ready.
+
+## 4. Deploy Firestore rules and indexes
+
+Install the Firebase CLI locally, sign in, select the project, then deploy:
 
 ```bash
 npm install -g firebase-tools
@@ -34,61 +47,56 @@ firebase use --add
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-The repository's `firebase.json` points to `firestore.rules` and `firestore.indexes.json`.
+The repository's `firebase.json` points to `firestore.rules` and `firestore.indexes.json`. Test rules in the Firebase Emulator before using real accounts.
 
-## 4. Server endpoints added
+## 5. Private API endpoints
 
-- `GET /api/auth/me`: verifies a Bearer Firebase ID token and returns the authenticated UID, email and Admin custom-claim status.
-- `GET /api/generation/quota`: returns the user's usage for the current India calendar day.
-- `GET /api/health`: reports whether Firebase Admin credentials are configured. It continues to report `videoGenerationReady: false`.
+All private endpoints require `Authorization: Bearer <Firebase ID token>`. The server verifies the token and revocation state; it never trusts a UID supplied in JSON, query parameters, or a custom header.
 
-Private endpoints require `Authorization: Bearer <Firebase ID token>`. The server verifies the token and revocation state; it never trusts a UID supplied in JSON, query parameters, or a custom header.
+- `GET /api/auth/me`: authenticated UID, email, and Admin custom-claim status.
+- `GET /api/generation/quota`: current Asia/Kolkata day usage and active-job lock.
+- `POST /api/generation/jobs`: validates and reserves a job, but returns HTTP 503 while `GENERATION_QUEUE_ENABLED=false`.
+- `GET /api/generation/jobs/:jobId`: returns the authenticated owner's job status.
+- `GET /api/health`: reports Firebase setup and queue flags; `videoGenerationReady` remains false.
 
-## 5. Daily generation quota service
+The old synchronous `POST /api/video` endpoint is retired and returns HTTP 410. It no longer calls Veo.
 
-`lib/generation-quota.js` implements a Firestore transaction with these rules:
+## 6. Daily quota and job reservation
 
-- Maximum two successful/reserved generation attempts per user per day, using the `Asia/Kolkata` calendar date.
-- Only one active generation per user at a time.
-- A reservation increments the daily count and records the active job atomically.
+`lib/generation-quota.js` uses a Firestore transaction:
+
+- Maximum two reserved generations per user per Asia/Kolkata calendar day.
+- Only one active job per user at a time, even across midnight.
+- A reservation increments the day's count and creates a job document with status `queued`.
 - A successful generation remains counted.
-- A terminal failure refunds the reservation exactly once and clears the active-job lock.
-- Repeated completion/failure callbacks are idempotent.
+- A terminal failure refunds the reservation exactly once.
+- Repeated terminal callbacks are idempotent.
 
-The quota module has unit tests using Node's built-in test runner. These tests validate the service logic; they are not a substitute for Firebase Emulator transaction/rules tests or a real multi-request concurrency test.
+These rules are service-level unit tested. They are not a substitute for Firestore Emulator tests or a real multi-request concurrency test.
 
-## 6. Paid video route remains opt-in and incomplete
+## 7. Queue leases and recovery
 
-The legacy `POST /api/video` route is now protected by Firebase ID-token verification and the transactional quota. It still calls the paid Veo API synchronously, creates only one provider clip, and is disabled unless `ENABLE_PAID_VIDEO_API=true`. Do not enable it for the zero-budget product. It is not the planned multi-scene queue and does not produce a five-minute story film.
+`lib/generation-queue.js` provides the primitives a separate worker process will use:
 
-There is no durable worker, lease/heartbeat recovery, scene planner, multi-clip assembly, Hindi voice pipeline, lip-sync pipeline, or MP4 export workflow yet. Do not set `ENABLE_PAID_VIDEO_API=true` merely to test the site.
+- `getClaimableGenerationJobIds`: discovers queued jobs and processing jobs with expired leases.
+- `claimGenerationJob`: transactionally claims a queued job or takes over an expired lease.
+- `renewGenerationLease`: heartbeat that only the current worker owner can renew.
+- `getGenerationJob`: reads a job only when its UID matches the verified account.
 
-## 7. Admin bootstrap
+Worker leases default to two minutes and may be configured between 10 seconds and 15 minutes. A worker must heartbeat before its lease expires. If it stops, another worker can reclaim the job. The worker must make output writes idempotent so a retry does not publish duplicate assets.
 
-Do not add an admin email or password to source code. After the authenticated backend is deployed, use a one-time private server-side bootstrap command to set the custom claim `admin: true` on the owner's UID. The command should run locally with a private service-account credential excluded by `.gitignore`, then be removed or disabled. The Admin SDK bypasses Firestore rules, so every admin endpoint must independently verify the `admin` custom claim.
+**Important:** these are queue primitives only. There is not yet a running worker, scheduler, GPU model adapter, or automatic recovery process. Keep `GENERATION_QUEUE_ENABLED=false` in every environment until a real worker is deployed, monitored, and tested. Enabling job intake before a worker exists could reserve a user's daily quota for a job that never runs.
 
-## Current limitation
+## 8. Admin bootstrap
 
-These changes add backend token verification, quota reading and a tested transactional quota service. They do not create the Firebase project, enable Authentication in the console, add browser login/signup UI, implement a durable worker queue, or generate a video. Test the Firestore rules in the Firebase Emulator before opening the database to real users.
+Do not add an admin email or password to source code. Use a one-time private server-side command to set the Firebase custom claim `admin: true` on the owner's UID. Run it locally with a private service-account credential excluded by `.gitignore`, then remove or disable the bootstrap command. The Admin SDK bypasses Firestore rules, so every future admin endpoint must independently verify the `admin` custom claim. An admin dashboard and admin API routes are not implemented yet.
 
+## 9. Zero-budget and generation limitations
 
-## 8. Browser email/password sign-in
+- Keep `ENABLE_GEMINI_API=false`, `ENABLE_PAID_VIDEO_API=false`, and `GENERATION_QUEUE_ENABLED=false`.
+- The project builder and account UI can be hosted on a free CPU web tier, subject to that host's current limits.
+- Free CPU hosting cannot reliably run current high-quality video-generation models.
+- A genuine motion-video worker needs compatible GPU compute. No free hosted GPU is assumed.
+- Private reference-image storage, multi-scene planning, Hindi TTS, lip-sync, background audio mixing, FFmpeg MP4 assembly, and the admin dashboard remain future work.
 
-The account panel is loaded by `public/auth.js` and uses the Firebase Web SDK from Google's pinned CDN module build. It supports:
-
-- Email/password account creation and sign-in.
-- Display-name setup for new accounts.
-- Password reset email.
-- Sign-out.
-- Calling the authenticated server endpoints to show the current user's India-day quota and Admin claim.
-
-Set these public Web app values in the server environment (for example, Vercel Environment Variables):
-
-- `FIREBASE_WEB_API_KEY`
-- `FIREBASE_AUTH_DOMAIN`
-- `FIREBASE_PROJECT_ID` (also used by Firebase Admin)
-- `FIREBASE_WEB_APP_ID`
-
-The `GET /api/config` endpoint returns only these Firebase Web app identifiers. A Firebase Web API key is not an Admin credential; restrict it in Google Cloud where practical, and configure Firebase Authentication's authorized domains for the deployed hostname.
-
-The browser sign-in panel remains in setup mode until all four values are present. Even after browser sign-in works, the quota display requires Firebase Admin credentials and Firestore access on the server. Do not paste service-account JSON into the browser or GitHub.
+Never represent a queued brief as a generated video. Do not substitute still-image slideshows for motion video.

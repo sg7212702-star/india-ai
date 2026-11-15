@@ -22,7 +22,7 @@ This foundation still needs a real Firebase project, Email/Password sign-in enab
 ## Durable queue foundation
 
 - New reservations are stored as `queued` jobs with a validated creative brief.
-- `lib/generation-queue.js` provides Firestore queue discovery, transactional worker claims, expiring leases, heartbeats, and recovery of jobs whose worker lease expired.
+- `lib/generation-queue.js` provides FIFO queue discovery, transactional worker claims, expiring leases, heartbeats, stale-worker protection, and recovery of jobs whose worker lease expired.
 - `GET /api/generation/jobs/:jobId` returns the authenticated owner's job status.
 - `POST /api/generation/jobs` is guarded by `GENERATION_QUEUE_ENABLED=false` by default. Keep it disabled until a real worker is deployed and tested.
 - The old synchronous `POST /api/video` Veo endpoint is retired with HTTP 410. No synchronous paid video request is sent.
@@ -41,7 +41,7 @@ Requirements: Node.js 20+
 
 1. Clone this repository.
 2. Copy `.env.example` to `.env`.
-3. Keep `ENABLE_GEMINI_API=false`, `ENABLE_PAID_VIDEO_API=false`, and `GENERATION_QUEUE_ENABLED=false`.
+3. Keep `ENABLE_GEMINI_API=false` and `GENERATION_QUEUE_ENABLED=false`.
 4. Run `npm install`.
 5. Run `npm run check`.
 6. Run `npm test`.

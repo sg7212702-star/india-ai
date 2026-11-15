@@ -168,3 +168,5 @@ Added a first durable-queue foundation without turning on job intake:
 - Updated README and Firebase setup instructions.
 
 Safety boundary: the queue primitives are not a running worker. No worker process, GPU model, private asset storage, scene planner, Hindi TTS/lip-sync, FFmpeg assembly, or admin dashboard has been deployed. Keep `GENERATION_QUEUE_ENABLED=false` until a real worker is available and tested. Queue unit tests do not replace Firestore Emulator or production concurrency tests.
+
+Queue hardening follow-up: queue discovery now selects queued jobs in FIFO order and queries expired leases directly using a composite Firestore index. Completion/refund now requires the current worker ID, preventing an old worker from finalizing a job after another worker has reclaimed its lease. The queue remains disabled until an actual worker exists.

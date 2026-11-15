@@ -35,13 +35,14 @@ class FakeCollection {
   where(field, operator, value) { return new FakeQuery(this.db, this.path, [{ field, operator, value }]); }
 }
 class FakeQuery {
-  constructor(db, path, filters, count = 10) {
-    Object.assign(this, { db, path, filters, count });
+  constructor(db, path, filters, count = 10, orders = []) {
+    Object.assign(this, { db, path, filters, count, orders });
   }
   where(field, operator, value) {
-    return new FakeQuery(this.db, this.path, [...this.filters, { field, operator, value }], this.count);
+    return new FakeQuery(this.db, this.path, [...this.filters, { field, operator, value }], this.count, this.orders);
   }
-  limit(count) { return new FakeQuery(this.db, this.path, this.filters, count); }
+  orderBy(field, direction = 'asc') { return new FakeQuery(this.db, this.path, this.filters, this.count, [...this.orders, { field, direction }]); }
+  limit(count) { return new FakeQuery(this.db, this.path, this.filters, count, this.orders); }
   async get() {
     const prefix = `${this.path}/`;
     const matches = (data, filter) => {
@@ -54,8 +55,17 @@ class FakeQuery {
       }
       return false;
     };
-    const docs = [...this.db.data.entries()]
-      .filter(([path, data]) => path.startsWith(prefix) && !path.slice(prefix.length).includes('/') && this.filters.every((filter) => matches(data, filter)))
+    const entries = [...this.db.data.entries()]
+      .filter(([path, data]) => path.startsWith(prefix) && !path.slice(prefix.length).includes('/') && this.filters.every((filter) => matches(data, filter)));
+    for (const order of [...this.orders].reverse()) {
+      const direction = order.direction === 'desc' ? -1 : 1;
+      entries.sort((a, b) => {
+        const left = a[1][order.field] instanceof Date ? a[1][order.field].getTime() : a[1][order.field]?.toMillis?.() ?? 0;
+        const right = b[1][order.field] instanceof Date ? b[1][order.field].getTime() : b[1][order.field]?.toMillis?.() ?? 0;
+        return (left - right) * direction;
+      });
+    }
+    const docs = entries
       .slice(0, this.count)
       .map(([path, data]) => ({ id: path.slice(prefix.length), data: () => structuredClone(data) }));
     return { docs };

@@ -118,6 +118,41 @@ test('keeps the one-active-job lock across India midnight', async () => {
   assert.equal(await getGenerationUsage(db, 'user-midnight', { now: beforeMidnight }).then((usage) => usage.used), 1);
 });
 
+test('an expired worker cannot finish a job before it is reclaimed', async () => {
+  const db = new FakeFirestore();
+  await reserveGenerationSlot(db, {
+    uid: 'user-expired',
+    jobId: 'job-expired',
+    now: fixedNow,
+    serverTimestamp: timestamp
+  });
+  await claimGenerationJob(db, {
+    jobId: 'job-expired',
+    workerId: 'worker-expired',
+    now: fixedNow,
+    leaseMs: 10_000,
+    serverTimestamp: timestamp
+  });
+
+  await assert.rejects(
+    finishGeneration(db, {
+      uid: 'user-expired',
+      jobId: 'job-expired',
+      workerId: 'worker-expired',
+      succeeded: true,
+      now: new Date(fixedNow.getTime() + 10_001),
+      serverTimestamp: timestamp
+    }),
+    (error) => error.code === 'WORKER_LEASE_EXPIRED'
+  );
+
+  const job = await db.collection('jobs').doc('job-expired').get();
+  assert.equal(job.data().status, 'processing');
+  const usage = await getGenerationUsage(db, 'user-expired', { now: fixedNow });
+  assert.equal(usage.used, 1);
+  assert.equal(usage.activeJobId, 'job-expired');
+});
+
 test('refunds a failed generation once and clears the active lock', async () => {
   const db = new FakeFirestore();
   await reserveGenerationSlot(db, { uid: 'user-2', jobId: 'job-fail', now: fixedNow, serverTimestamp: timestamp });

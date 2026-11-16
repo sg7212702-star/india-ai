@@ -23,6 +23,7 @@ This foundation still needs a real Firebase project, Email/Password sign-in enab
 
 - New reservations are stored as `queued` jobs with a validated creative brief.
 - `lib/generation-queue.js` provides FIFO queue discovery, transactional worker claims, expiring leases, heartbeats, stale-worker protection, and recovery of jobs whose worker lease expired.
+- A worker cannot complete or refund a job after its lease expires; it must reclaim the job first. This prevents a paused process from publishing a late result after its ownership window has ended.
 - `GET /api/generation/jobs/:jobId` returns the authenticated owner's job status.
 - `POST /api/generation/jobs` is guarded by `GENERATION_QUEUE_ENABLED=false` by default. Keep it disabled until a real worker is deployed and tested.
 - The old synchronous `POST /api/video` Veo endpoint is retired with HTTP 410. No synchronous paid video request is sent.

@@ -6,7 +6,7 @@ import {
   indiaDateKey,
   reserveGenerationSlot
 } from '../lib/generation-quota.js';
-import { claimGenerationJob } from '../lib/generation-queue.js';
+import { claimGenerationJob, renewGenerationLease } from '../lib/generation-queue.js';
 
 class FakeFirestore {
   constructor() { this.data = new Map(); }
@@ -83,6 +83,14 @@ test('keeps the one-active-job lock across India midnight', async () => {
     jobId: 'job-before-midnight',
     workerId: 'worker-midnight',
     now: beforeMidnight,
+    leaseMs: 900_000,
+    serverTimestamp: timestamp
+  });
+
+  await renewGenerationLease(db, {
+    jobId: 'job-before-midnight',
+    workerId: 'worker-midnight',
+    now: new Date(beforeMidnight.getTime() + 10 * 60_000),
     leaseMs: 900_000,
     serverTimestamp: timestamp
   });

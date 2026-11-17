@@ -23,12 +23,9 @@ export function validateWorkerOutput(output, { uid, jobId, request }) {
     throw outputError('The adapter returned an invalid private asset ID.');
   }
 
-  const expectedPrefix = `users/${uid}/jobs/${jobId}/`;
-  const pathParts = storagePath.split('/');
-  if (!storagePath.startsWith(expectedPrefix)
-    || pathParts.some((part) => !part || part === '.' || part === '..')
-    || !/^[A-Za-z0-9._/-]+$/.test(storagePath)) {
-    throw outputError('The MP4 must be stored under this user and job in private storage.');
+  const expectedPath = `users/${uid}/jobs/${jobId}/final.mp4`;
+  if (storagePath !== expectedPath) {
+    throw outputError('The MP4 must use the deterministic private path for this user and job.');
   }
 
   if (mimeType !== 'video/mp4') throw outputError('The worker output must be a real MP4 file.');

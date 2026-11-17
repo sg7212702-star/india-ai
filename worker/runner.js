@@ -38,7 +38,9 @@ export function createGenerationWorker({
   if (!db || typeof db.collection !== 'function' || typeof db.runTransaction !== 'function') {
     throw new TypeError('A Firestore-compatible database is required.');
   }
-  if (!adapter || adapter.available !== true || typeof adapter.generate !== 'function') {
+  if (!adapter || adapter.available !== true
+    || typeof adapter.generate !== 'function'
+    || typeof adapter.verifyOutput !== 'function') {
     throw new Error('A working video adapter is required. No job will be claimed without one.');
   }
   if (typeof workerId !== 'string' || !/^[a-zA-Z0-9._:-]{3,100}$/.test(workerId)) {
@@ -140,6 +142,18 @@ export function createGenerationWorker({
         jobId,
         request: claim.request
       });
+      const outputVerified = await adapter.verifyOutput({
+        uid: claim.uid,
+        jobId,
+        request: claim.request,
+        output,
+        signal: controller.signal
+      });
+      if (outputVerified !== true) {
+        throw Object.assign(new Error('The adapter could not verify the private MP4 object.'), {
+          code: 'OUTPUT_NOT_VERIFIED'
+        });
+      }
 
       await finishGeneration(db, {
         uid: claim.uid,

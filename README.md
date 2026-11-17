@@ -28,13 +28,13 @@ This foundation still needs a real Firebase project, Email/Password sign-in enab
 - `POST /api/generation/jobs` is guarded by `GENERATION_QUEUE_ENABLED=false` by default. Keep it disabled until a real worker is deployed and tested.
 - The old synchronous `POST /api/video` Veo endpoint is retired with HTTP 410. No synchronous paid video request is sent.
 
-The queue is a backend foundation, not a running worker. There is currently no process polling and claiming jobs, no GPU model adapter, and no automatic job completion. Do not turn on `GENERATION_QUEUE_ENABLED` until those pieces are deployed.
+A separate worker runner and process entrypoint now exist in `worker/`. The runner polls and claims jobs, renews leases, validates MP4 output metadata, and completes or fails jobs. The process refuses to start unless a trusted video adapter module is configured. There is still no provider/GPU adapter, private storage integration, or authenticated download endpoint. Do not turn on `GENERATION_QUEUE_ENABLED` until a real adapter and private storage are deployed and smoke-tested.
 
 ## Video generation status
 
 **Real video generation is intentionally disabled.** The Generate control remains unavailable and `/api/health` reports `videoGenerationReady: false`. No slideshow is substituted for a real motion-video result.
 
-The repository still does not include a GPU worker, multi-scene video pipeline, Hindi TTS/lip-sync integration, private image storage, FFmpeg assembly, or admin dashboard.
+The worker orchestration is present, but the repository still does not include a GPU model adapter, multi-scene video pipeline, Hindi TTS/lip-sync integration, private image/video storage, FFmpeg assembly, authenticated MP4 download, or admin dashboard.
 
 ## Run locally
 
@@ -50,6 +50,6 @@ Requirements: Node.js 20+
 
 Never put API keys or Firebase Admin credentials in frontend code or commit a real `.env` file.
 
-The legacy text/image limits are in-memory and IP-based. They are not production user quotas. Free CPU hosting can serve the website and lightweight API work, but it cannot reliably run modern video-generation models. A genuine video worker requires compatible GPU compute; no free hosted GPU is assumed.
+The legacy text/image limits are in-memory and IP-based. They are not production user quotas. Free CPU hosting can serve the website and lightweight API/worker orchestration, but it cannot reliably run modern video-generation models. A genuine video adapter requires compatible GPU compute; no free hosted GPU is assumed. See [worker documentation](./worker/README.md) for the adapter contract and safety gate.
 
 See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) and [AI_ANIMATION_STUDIO_BUILD_PLAN.md](./AI_ANIMATION_STUDIO_BUILD_PLAN.md) for setup, security, and the implementation roadmap.

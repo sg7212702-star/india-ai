@@ -42,7 +42,7 @@ The output validator enforces:
 - Dimensions that match the requested 9:16 or 16:9 format.
 - A private object path beneath `users/{uid}/jobs/{jobId}/`; public URLs and paths belonging to another user/job are rejected.
 
-The job document stores the private storage path for server-side use. The owner-facing job-status API returns output metadata but deliberately omits that path. A separate authenticated download/signing endpoint and storage rules still need to be implemented.
+The adapter must upload to the deterministic private object path `users/{uid}/jobs/{jobId}/final.mp4`. The path is not stored in Firestore; a future authenticated download endpoint can derive it from the verified UID and job ID. The owner-facing job-status API returns only safe output metadata. A separate authenticated download/signing endpoint and storage rules still need to be implemented.
 
 ## Worker environment
 

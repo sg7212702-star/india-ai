@@ -10,7 +10,7 @@ No provider adapter or GPU model is included in this repository yet. Do not crea
 
 ## Adapter contract
 
-The trusted module must export:
+The trusted module must export the following shape. This is an interface example, not a working provider: the sample metadata is illustrative, and the verification placeholder deliberately throws until real storage and media checks are implemented:
 
 ```js
 export async function createVideoAdapter({ env }) {
@@ -37,7 +37,7 @@ export async function createVideoAdapter({ env }) {
       // Confirm the private object exists, its bytes/MP4 signature are valid,
       // and ffprobe (or an equivalent probe) confirms duration and dimensions.
       // Also verify the object is not public and belongs to uid/jobId.
-      return true;
+      throw new Error('Implement private-object and MP4 verification before enabling this adapter.');
     }
   };
 }

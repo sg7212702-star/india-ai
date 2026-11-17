@@ -96,9 +96,9 @@ The worker runs separately from Express:
 npm run worker
 ```
 
-It requires a trusted module path in `VIDEO_ADAPTER_MODULE`. That module must export `createVideoAdapter({ env })` and return `{ available: true, generate() }`. If the setting is missing or the adapter is unavailable, the process exits before it can claim a job.
+It requires a trusted module path in `VIDEO_ADAPTER_MODULE`. That module must export `createVideoAdapter({ env })` and return `{ available: true, generate(), verifyOutput() }`. If the setting is missing or the adapter is unavailable, the process exits before it can claim a job.
 
-The runner handles FIFO discovery, transactional claims, lease heartbeats, retryable failures, maximum attempts, output validation, and quota release/refund. A successful adapter must upload a real MP4 to private object storage and return metadata under `users/{uid}/jobs/{jobId}/`. The owner-facing job-status API exposes safe metadata only; it does not expose the private storage path.
+The runner handles FIFO discovery, transactional claims, lease heartbeats, retryable failures, maximum attempts, output validation, and quota release/refund. A successful adapter must upload a real MP4 to private object storage at `users/{uid}/jobs/{jobId}/final.mp4`, return its metadata, and verify the stored bytes, duration, and dimensions before completion. The owner-facing job-status API exposes safe metadata only; it does not expose the private storage path.
 
 Configure these only on the separate worker host: `FIREBASE_PROJECT_ID`, Firebase Admin credentials, `VIDEO_ADAPTER_MODULE`, and optionally `WORKER_ID`, `WORKER_LEASE_MS`, `WORKER_POLL_INTERVAL_MS`, `WORKER_MAX_ATTEMPTS`, and `WORKER_BATCH_SIZE`. See [worker/README.md](./worker/README.md) for the full adapter contract.
 

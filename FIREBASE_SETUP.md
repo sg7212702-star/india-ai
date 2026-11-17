@@ -86,13 +86,31 @@ These rules are service-level unit tested. They are not a substitute for Firesto
 
 Worker leases default to two minutes and may be configured between 10 seconds and 15 minutes. A worker must heartbeat before its lease expires. If it stops, another worker can reclaim the job. The worker must make output writes idempotent so a retry does not publish duplicate assets.
 
-**Important:** these are queue primitives only. There is not yet a running worker, scheduler, GPU model adapter, or automatic recovery process. Keep `GENERATION_QUEUE_ENABLED=false` in every environment until a real worker is deployed, monitored, and tested. Enabling job intake before a worker exists could reserve a user's daily quota for a job that never runs.
+**Important:** the repository now includes a separate worker runner and process entrypoint, but it still has no provider/GPU adapter or private storage integration. Keep `GENERATION_QUEUE_ENABLED=false` in every environment until a real adapter, private storage, and an end-to-end smoke test are deployed. Enabling job intake before that could reserve a user's daily quota for a job that never produces a video.
+
+## 8. Worker process and adapter gate
+
+The worker runs separately from Express:
+
+```bash
+npm run worker
+```
+
+It requires a trusted module path in `VIDEO_ADAPTER_MODULE`. That module must export `createVideoAdapter({ env })` and return `{ available: true, generate() }`. If the setting is missing or the adapter is unavailable, the process exits before it can claim a job.
+
+The runner handles FIFO discovery, transactional claims, lease heartbeats, retryable failures, maximum attempts, output validation, and quota release/refund. A successful adapter must upload a real MP4 to private object storage and return metadata under `users/{uid}/jobs/{jobId}/`. The owner-facing job-status API exposes safe metadata only; it does not expose the private storage path.
+
+Configure these only on the separate worker host: `FIREBASE_PROJECT_ID`, Firebase Admin credentials, `VIDEO_ADAPTER_MODULE`, and optionally `WORKER_ID`, `WORKER_LEASE_MS`, `WORKER_POLL_INTERVAL_MS`, `WORKER_MAX_ATTEMPTS`, and `WORKER_BATCH_SIZE`. See [worker/README.md](./worker/README.md) for the full adapter contract.
+
+There is no adapter or GPU model included yet. Do not enable queue intake or describe jobs as generated videos until a real adapter and private storage are available and tested.
+
+## 9. Admin bootstrap
 
 ## 8. Admin bootstrap
 
 Do not add an admin email or password to source code. Use a one-time private server-side command to set the Firebase custom claim `admin: true` on the owner's UID. Run it locally with a private service-account credential excluded by `.gitignore`, then remove or disable the bootstrap command. The Admin SDK bypasses Firestore rules, so every future admin endpoint must independently verify the `admin` custom claim. An admin dashboard and admin API routes are not implemented yet.
 
-## 9. Zero-budget and generation limitations
+## 10. Zero-budget and generation limitations
 
 - Keep `ENABLE_GEMINI_API=false` and `GENERATION_QUEUE_ENABLED=false`.
 - The project builder and account UI can be hosted on a free CPU web tier, subject to that host's current limits.

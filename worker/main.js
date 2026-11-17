@@ -45,8 +45,10 @@ async function loadVideoAdapter() {
   }
 
   const adapter = await adapterModule.createVideoAdapter({ env: process.env });
-  if (!adapter || adapter.available !== true || typeof adapter.generate !== 'function') {
-    throw new Error('The configured video adapter is not available. The worker will not start.');
+  if (!adapter || adapter.available !== true
+    || typeof adapter.generate !== 'function'
+    || typeof adapter.verifyOutput !== 'function') {
+    throw new Error('The configured video adapter must be available and implement generate() plus verifyOutput(). The worker will not start.');
   }
   return adapter;
 }

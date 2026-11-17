@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check lib/generation-quota.js && node --check lib/generation-queue.js && node --check test/generation-quota.test.js && node --check test/generation-queue.test.js && node --check public/auth.js",
+    "worker": "node worker/main.js",
+    "check": "node --check server.js && node --check public/app.js && node --check lib/generation-quota.js && node --check lib/generation-queue.js && node --check test/generation-quota.test.js && node --check test/generation-queue.test.js && node --check public/auth.js && node --check worker/output-contract.js && node --check worker/runner.js && node --check worker/main.js && node --check test/worker-runner.test.js",
     "test": "node --test"
   },
   "engines": {

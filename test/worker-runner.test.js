@@ -127,7 +127,8 @@ test('worker completes a real MP4 artifact and hides its private storage path fr
       available: true,
       async generate({ uid, jobId }) {
         return { output: validOutput(uid, jobId) };
-      }
+      },
+      async verifyOutput() { return true; }
     },
     workerId: 'worker-test',
     leaseMs: 60_000,
@@ -178,7 +179,8 @@ test('retryable provider errors leave the lease for recovery without refunding e
           code: 'UPSTREAM_TIMEOUT',
           retryable: true
         });
-      }
+      },
+      async verifyOutput() { return true; }
     },
     workerId: 'worker-test',
     leaseMs: 60_000,
@@ -203,7 +205,8 @@ test('invalid MP4 output fails the job and refunds the reserved quota', async ()
       available: true,
       async generate({ uid, jobId }) {
         return { output: { ...validOutput(uid, jobId), mimeType: 'image/png' } };
-      }
+      },
+      async verifyOutput() { return true; }
     },
     workerId: 'worker-test',
     leaseMs: 60_000,

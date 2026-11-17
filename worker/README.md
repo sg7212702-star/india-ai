@@ -4,7 +4,7 @@ The worker is a separate Node.js process. It polls Firestore, transactionally cl
 
 ## Safety gate
 
-The process refuses to start unless `VIDEO_ADAPTER_MODULE` points to a trusted local ES module that exports `createVideoAdapter({ env })` and returns an adapter with `available: true` plus a `generate()` function. It does not claim jobs when that adapter is missing or unavailable.
+The process refuses to start unless `VIDEO_ADAPTER_MODULE` points to a trusted local ES module that exports `createVideoAdapter({ env })` and returns an adapter with `available: true` plus `generate()` and `verifyOutput()` functions. It does not claim jobs when that adapter is missing or unavailable.
 
 No provider adapter or GPU model is included in this repository yet. Do not create a fake adapter that returns still images or marks a job complete without a real MP4. Keep `GENERATION_QUEUE_ENABLED=false` on the web/API server until a real adapter, private object storage, and a smoke test are deployed.
 
@@ -32,12 +32,18 @@ export async function createVideoAdapter({ env }) {
           sizeBytes: 123456
         }
       };
+    },
+    async verifyOutput({ uid, jobId, output, signal }) {
+      // Confirm the private object exists, its bytes/MP4 signature are valid,
+      // and ffprobe (or an equivalent probe) confirms duration and dimensions.
+      // Also verify the object is not public and belongs to uid/jobId.
+      return true;
     }
   };
 }
 ```
 
-The output validator enforces:
+Before a job is marked completed, `verifyOutput()` must confirm the object exists in private storage and that its actual MP4 bytes, duration, and dimensions match the metadata. Returning `false` fails the job. The output validator also enforces:
 - MP4 MIME type, a positive duration no longer than five minutes or the requested duration (with a two-second tolerance), and a file size up to 2 GB.
 - Dimensions that match the requested 9:16 or 16:9 format.
 - A private object path beneath `users/{uid}/jobs/{jobId}/`; public URLs and paths belonging to another user/job are rejected.

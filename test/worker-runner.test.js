@@ -138,7 +138,7 @@ test('worker completes a real MP4 artifact and hides its private storage path fr
   assert.equal(await worker.runOnce(), true);
   const stored = (await db.collection('jobs').doc('job-worker-1').get()).data();
   assert.equal(stored.status, 'completed');
-  assert.equal(stored.output.storagePath, 'users/user-worker/jobs/job-worker-1/final.mp4');
+  assert.equal('storagePath' in stored.output, false);
 
   const visible = await getGenerationJob(db, { uid: 'user-worker', jobId: 'job-worker-1' });
   assert.equal(visible.output.assetId, 'asset-worker-1');

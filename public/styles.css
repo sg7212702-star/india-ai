@@ -33,3 +33,26 @@
 
 /* Preserve native hidden-state behavior when component styles define display. */
 [hidden]{display:none!important}
+
+
+/* Scene-plan preview: a planning artifact, never a fake render result. */
+.scene-plan-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex-basis:100%}
+.scene-plan-actions span{font-size:10px;color:var(--muted)}
+.scene-plan-panel{flex-basis:100%;width:100%;margin-top:8px;padding:16px;border:1px solid var(--line);border-radius:15px;background:#080d1a99}
+.scene-plan-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.scene-plan-heading h3{font-size:14px;margin:0}
+.scene-plan-heading p{font-size:11px;color:var(--cyan);margin:4px 0 0}
+.scene-plan-heading button{font-size:11px;padding:8px 10px}
+.scene-plan-status{font-size:11px;color:var(--muted);margin:12px 0}
+.scene-plan-status[data-state=success]{color:var(--good)}
+.scene-plan-status[data-state=error]{color:#ffabb8}
+.scene-plan-status[data-state=loading]{color:var(--cyan)}
+.scene-plan-warnings{margin:0 0 12px;padding:10px 10px 10px 28px;border:1px solid #ffd18b35;border-radius:11px;background:#ffd18b0b;color:#e9d7b8;font-size:11px}
+.scene-plan-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.scene-plan-card{min-width:0;padding:12px;border:1px solid var(--line);border-radius:12px;background:#ffffff05}
+.scene-plan-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.scene-plan-card-head strong{font-size:12px}
+.scene-plan-card-head span{font-size:10px;color:var(--cyan)}
+.scene-source{font-size:12px;color:#e9edfa;margin:0 0 8px;overflow-wrap:anywhere}
+.scene-direction{display:block;color:var(--muted);font-size:10px;line-height:1.45}
+@media(max-width:600px){.scene-plan-actions>*{width:100%;text-align:center}.scene-plan-heading{align-items:flex-start;flex-direction:column}.scene-plan-heading button{width:100%}.scene-plan-list{grid-template-columns:1fr}}

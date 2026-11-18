@@ -17,6 +17,7 @@ import {
   reserveGenerationSlot
 } from './lib/generation-quota.js';
 import { getGenerationJob } from './lib/generation-queue.js';
+import { createScenePlan } from './lib/scene-planner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -168,6 +169,18 @@ app.get('/api/limits', (req, res) => {
       image: Math.max(0, limits.image - row.image)
     }
   });
+});
+
+app.post('/api/scene-plan', (req, res) => {
+  try {
+    const plan = createScenePlan(req.body || {});
+    res.set('Cache-Control', 'no-store');
+    return res.json(plan);
+  } catch (error) {
+    return res.status(error.status || 400).json({
+      error: error.message || 'Could not create the scene plan.'
+    });
+  }
 });
 
 app.get('/api/auth/me', requireFirebaseUser, (req, res) => {

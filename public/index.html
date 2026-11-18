@@ -93,6 +93,22 @@
             <button class="secondary" type="button" id="downloadCurrent">Download brief JSON</button>
             <button class="secondary disabled" type="button" disabled title="A real video worker is not connected yet">Generate video · unavailable</button>
             <p class="notice">Generation is intentionally disabled. This preview does not call Veo or another paid API and will not pretend to render a video.</p>
+            <div class="scene-plan-actions">
+              <button class="secondary" type="button" id="previewScenePlan">Preview scene breakdown</button>
+              <span>Free text-only planning · no video render or daily quota used</span>
+            </div>
+            <section class="scene-plan-panel" id="scenePlanPanel" hidden aria-labelledby="scenePlanTitle">
+              <div class="scene-plan-heading">
+                <div>
+                  <h3 id="scenePlanTitle">Scene breakdown</h3>
+                  <p id="scenePlanSummary"></p>
+                </div>
+                <button class="secondary" type="button" id="downloadScenePlan" disabled>Download JSON</button>
+              </div>
+              <p class="scene-plan-status" id="scenePlanStatus" role="status" aria-live="polite"></p>
+              <ul class="scene-plan-warnings" id="scenePlanWarnings" hidden></ul>
+              <div class="scene-plan-list" id="scenePlanList"></div>
+            </section>
           </div>
         </form>
       </section>
@@ -123,6 +139,7 @@
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/app.js" defer></script>
+  <script type="module" src="/scene-planner.js"></script>
   <script type="module" src="/auth.js"></script>
 </body>
 </html>

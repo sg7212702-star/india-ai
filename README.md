@@ -30,6 +30,13 @@ This foundation still needs a real Firebase project, Email/Password sign-in enab
 
 A separate worker runner and process entrypoint now exist in `worker/`. The runner polls and claims jobs, renews leases, validates MP4 output metadata, and completes or fails jobs. The process refuses to start unless a trusted video adapter module is configured. There is still no provider/GPU adapter, private storage integration, or authenticated download endpoint. Do not turn on `GENERATION_QUEUE_ENABLED` until a real adapter and private storage are deployed and smoke-tested.
 
+## Text-to-scene planning preview
+
+- `lib/scene-planner.js` converts a prompt or Hindi/English story into ordered scene beats without calling an AI provider.
+- `POST /api/scene-plan` returns a downloadable JSON manifest. It does not create a generation job, consume the two-video quota, upload the reference photo, or claim that a video was rendered.
+- Scene density is capped at an eight-second planning target. If the supplied text is too short for the selected duration, the response reports the supported planned duration and asks for more real story beats instead of inventing filler.
+- `public/scene-planner.js` renders the scene breakdown and exports the manifest from the project builder.
+
 ## Video generation status
 
 **Real video generation is intentionally disabled.** The Generate control remains unavailable and `/api/health` reports `videoGenerationReady: false`. No slideshow is substituted for a real motion-video result.

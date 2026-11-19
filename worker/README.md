@@ -66,3 +66,10 @@ Retryable provider errors leave the job in processing until its lease expires; a
 ## Zero-budget limitation
 
 The worker orchestration is lightweight Node.js code, but it does not generate video by itself. A real 2D/3D motion-video adapter needs a compatible model and compute. Free CPU hosting is not a substitute for GPU inference, and no free GPU is assumed. Hindi TTS, lip-sync, multi-scene continuity, private storage, and FFmpeg assembly must be implemented in the real adapter/pipeline before the product can advertise generated MP4s.
+
+
+## Authenticated MP4 retrieval
+
+The Express API now exposes `GET /api/generation/jobs/:jobId/download` for the verified owner of a completed job. The endpoint derives `users/{uid}/jobs/{jobId}/final.mp4` server-side and streams the object with single-range support for seeking. It does not expose a public URL or storage path.
+
+The API host must set `FIREBASE_STORAGE_BUCKET`. The bucket must have Uniform Bucket-Level Access enabled and Public Access Prevention enforced. The endpoint rejects Firebase download-token metadata and public ACLs, checks the object content type and byte size against the job metadata, and returns `private, no-store`. The adapter's `verifyOutput()` must upload the object without download tokens and verify the actual MP4 contents before the worker completes the job. This route is not production-ready until the bucket configuration and real adapter are deployed and smoke-tested.

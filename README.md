@@ -41,7 +41,7 @@ A separate worker runner and process entrypoint now exist in `worker/`. The runn
 
 **Real video generation is intentionally disabled.** The Generate control remains unavailable and `/api/health` reports `videoGenerationReady: false`. No slideshow is substituted for a real motion-video result.
 
-The worker orchestration is present, but the repository still does not include a GPU model adapter, multi-scene video pipeline, Hindi TTS/lip-sync integration, private image/video storage, FFmpeg assembly, authenticated MP4 download, or admin dashboard.
+The worker orchestration is present. An authenticated private MP4 streaming/download route has been added, but it requires bucket configuration and an uploaded verified video before it can work. The repository still does not include a GPU model adapter, multi-scene video pipeline, Hindi TTS/lip-sync integration, private image/video storage, FFmpeg assembly, or admin dashboard.
 
 ## Run locally
 

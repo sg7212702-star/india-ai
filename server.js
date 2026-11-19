@@ -10,6 +10,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import {
   getGenerationUsage,
@@ -18,6 +19,7 @@ import {
 } from './lib/generation-quota.js';
 import { getGenerationJob } from './lib/generation-queue.js';
 import { createScenePlan } from './lib/scene-planner.js';
+import { privateVideoObjectPath, parseVideoByteRange } from './lib/private-video.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -59,6 +61,9 @@ function initializeFirebaseAdmin() {
 const firebaseApp = initializeFirebaseAdmin();
 const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
+const privateVideoBucket = firebaseApp && process.env.FIREBASE_STORAGE_BUCKET
+  ? getStorage(firebaseApp).bucket(process.env.FIREBASE_STORAGE_BUCKET)
+  : null;
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -322,6 +327,85 @@ app.get('/api/generation/jobs/:jobId', requireFirebaseUser, async (req, res) => 
     if (error.code === 'JOB_NOT_FOUND') return res.status(404).json({ error: 'Generation job was not found.' });
     console.error('Could not read generation job:', error);
     return res.status(500).json({ error: 'Could not read generation job status.' });
+  }
+});
+
+app.get('/api/generation/jobs/:jobId/download', requireFirebaseUser, async (req, res) => {
+  if (!firestore || !privateVideoBucket) {
+    return res.status(503).json({ error: 'Private video storage is not configured on the server.' });
+  }
+
+  const uid = req.firebaseUser.uid;
+  const jobId = String(req.params.jobId || '');
+  let storagePath;
+  try {
+    storagePath = privateVideoObjectPath(uid, jobId);
+  } catch {
+    return res.status(404).json({ error: 'Completed video was not found.' });
+  }
+
+  try {
+    const jobSnapshot = await firestore.collection('jobs').doc(jobId).get();
+    if (!jobSnapshot.exists) return res.status(404).json({ error: 'Completed video was not found.' });
+    const job = jobSnapshot.data();
+    if (job.uid !== uid) return res.status(404).json({ error: 'Completed video was not found.' });
+    if (job.status !== 'completed' || job.output?.mimeType !== 'video/mp4') {
+      return res.status(409).json({ error: 'This job does not have a completed video.' });
+    }
+
+    const [bucketMetadata] = await privateVideoBucket.getMetadata();
+    const iam = bucketMetadata?.iamConfiguration || {};
+    if (iam.uniformBucketLevelAccess?.enabled !== true || iam.publicAccessPrevention !== 'enforced') {
+      return res.status(503).json({
+        error: 'Private downloads require Uniform Bucket-Level Access and Public Access Prevention to be enforced on the storage bucket.'
+      });
+    }
+
+    const file = privateVideoBucket.file(storagePath);
+    const [objectMetadata] = await file.getMetadata();
+    const size = Number(objectMetadata.size);
+    const customMetadata = objectMetadata.metadata || {};
+    const objectAcl = Array.isArray(objectMetadata.acl) ? objectMetadata.acl : [];
+    const hasPublicAcl = objectAcl.some((entry) => ['allUsers', 'allAuthenticatedUsers'].includes(entry.entity));
+    if (customMetadata.firebaseStorageDownloadTokens || hasPublicAcl
+      || objectMetadata.contentType !== 'video/mp4'
+      || !Number.isSafeInteger(size) || size <= 0 || size > 2_000_000_000
+      || Number(job.output.sizeBytes) !== size) {
+      return res.status(502).json({ error: 'The stored video failed private-object validation.' });
+    }
+
+    const byteRange = parseVideoByteRange(req.get('range'), size);
+    res.set({
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'private, no-store, max-age=0',
+      'Content-Type': 'video/mp4',
+      'Content-Length': String(byteRange ? byteRange.length : size),
+      'Content-Disposition': `attachment; filename="animation-${jobId}.mp4"`,
+      'X-Content-Type-Options': 'nosniff'
+    });
+    if (byteRange) {
+      res.status(206);
+      res.set('Content-Range', `bytes ${byteRange.start}-${byteRange.end}/${size}`);
+    } else {
+      res.status(200);
+    }
+
+    if (req.method === 'HEAD') return res.end();
+    const stream = byteRange
+      ? file.createReadStream({ start: byteRange.start, end: byteRange.end })
+      : file.createReadStream();
+    stream.on('error', (error) => {
+      console.error('Private video stream failed:', error);
+      if (!res.headersSent) res.status(502).json({ error: 'Could not stream the private video.' });
+      else res.destroy(error);
+    });
+    return stream.pipe(res);
+  } catch (error) {
+    if (error?.code === 'INVALID_BYTE_RANGE') {
+      return res.status(416).set('Content-Range', 'bytes */*').json({ error: 'Requested byte range is not satisfiable.' });
+    }
+    console.error('Private video download failed:', error);
+    return res.status(500).json({ error: 'Could not retrieve the completed video.' });
   }
 });
 

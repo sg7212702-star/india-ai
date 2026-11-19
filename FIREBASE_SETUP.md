@@ -109,7 +109,15 @@ There is no adapter or GPU model included yet. Do not enable queue intake or des
 
 Do not add an admin email or password to source code. Use a one-time private server-side command to set the Firebase custom claim `admin: true` on the owner's UID. Run it locally with a private service-account credential excluded by `.gitignore`, then remove or disable the bootstrap command. The Admin SDK bypasses Firestore rules, so every future admin endpoint must independently verify the `admin` custom claim. An admin dashboard and admin API routes are not implemented yet.
 
-## 10. Zero-budget and generation limitations
+## 10. Private MP4 streaming/download foundation
+
+A server route has been added for authenticated downloads: `GET /api/generation/jobs/:jobId/download`. It verifies the Firebase ID token, confirms the job belongs to the requester and is completed, derives the deterministic private object path server-side, and streams the MP4 (including a single HTTP byte range for browser seeking). The response uses `private, no-store` and never returns a storage URL.
+
+Before this route can serve videos, configure `FIREBASE_STORAGE_BUCKET` on the web/API host and configure the bucket with **Uniform Bucket-Level Access enabled** and **Public Access Prevention enforced**. The route fails closed unless both protections are confirmed. Generated objects must not include Firebase download-token metadata or public ACLs. Store videos only at `users/{uid}/jobs/{jobId}/final.mp4`.
+
+The route is code-only until private storage and a real worker adapter are deployed. There is no generated MP4 to download yet. Range support intentionally accepts only one byte range; malformed or unsatisfiable ranges return HTTP 416.
+
+## 11. Zero-budget and generation limitations
 
 - Keep `ENABLE_GEMINI_API=false` and `GENERATION_QUEUE_ENABLED=false`.
 - The project builder and account UI can be hosted on a free CPU web tier, subject to that host's current limits.

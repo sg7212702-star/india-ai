@@ -374,7 +374,15 @@ app.get('/api/generation/jobs/:jobId/download', requireFirebaseUser, async (req,
       return res.status(502).json({ error: 'The stored video failed private-object validation.' });
     }
 
-    const byteRange = parseVideoByteRange(req.get('range'), size);
+    let byteRange;
+    try {
+      byteRange = parseVideoByteRange(req.get('range'), size);
+    } catch (rangeError) {
+      if (rangeError?.code === 'INVALID_BYTE_RANGE') {
+        return res.status(416).set('Content-Range', `bytes */${size}`).json({ error: 'Requested byte range is not satisfiable.' });
+      }
+      throw rangeError;
+    }
     res.set({
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'private, no-store, max-age=0',
@@ -401,9 +409,6 @@ app.get('/api/generation/jobs/:jobId/download', requireFirebaseUser, async (req,
     });
     return stream.pipe(res);
   } catch (error) {
-    if (error?.code === 'INVALID_BYTE_RANGE') {
-      return res.status(416).set('Content-Range', 'bytes */*').json({ error: 'Requested byte range is not satisfiable.' });
-    }
     console.error('Private video download failed:', error);
     return res.status(500).json({ error: 'Could not retrieve the completed video.' });
   }

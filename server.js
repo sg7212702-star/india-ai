@@ -17,7 +17,7 @@ import {
   indiaDateKey,
   reserveGenerationSlot
 } from './lib/generation-quota.js';
-import { getGenerationJob } from './lib/generation-queue.js';
+import { getGenerationJob, listGenerationJobs } from './lib/generation-queue.js';
 import { createScenePlan } from './lib/scene-planner.js';
 import { privateVideoObjectPath, parseVideoByteRange } from './lib/private-video.js';
 
@@ -312,6 +312,20 @@ app.post('/api/generation/jobs', requireFirebaseUser, async (req, res) => {
     if (error.code === 'DAILY_LIMIT_REACHED') return res.status(429).json({ error: error.message });
     console.error('Could not enqueue generation job:', error);
     return res.status(500).json({ error: 'Could not add your project to the generation queue.' });
+  }
+});
+
+app.get('/api/generation/jobs', requireFirebaseUser, async (req, res) => {
+  if (!firestore) return res.status(503).json({ error: 'Firestore Admin is not configured.' });
+  const rawLimit = typeof req.query.limit === 'string' ? Number(req.query.limit) : NaN;
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : 10;
+  try {
+    const items = await listGenerationJobs(firestore, { uid: req.firebaseUser.uid, limit });
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ items, limit: Math.min(25, limit) });
+  } catch (error) {
+    console.error('Could not list generation jobs:', error);
+    return res.status(500).json({ error: 'Could not list your generation jobs.' });
   }
 });
 

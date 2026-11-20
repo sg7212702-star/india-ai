@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { claimGenerationJob, getClaimableGenerationJobIds, renewGenerationLease } from '../lib/generation-queue.js';
+import { claimGenerationJob, getClaimableGenerationJobIds, listGenerationJobs, renewGenerationLease } from '../lib/generation-queue.js';
 import { finishGeneration, reserveGenerationSlot } from '../lib/generation-quota.js';
 
 class FakeFirestore {
@@ -164,4 +164,41 @@ test('terminal completion releases worker lease metadata', async () => {
   assert.equal(job.status, 'completed');
   assert.equal(job.workerId, null);
   assert.equal(job.leaseExpiresAt, null);
+});
+
+
+test('recent generation listing is user-scoped, newest-first and excludes private storage paths', async () => {
+  const db = new FakeFirestore();
+  db.data.set('jobs/job-new', {
+    uid: 'user-a', status: 'completed', createdAt: new Date('2026-11-19T10:00:00Z'),
+    updatedAt: new Date('2026-11-19T10:02:00Z'), finishedAt: new Date('2026-11-19T10:02:00Z'),
+    attempts: 1, request: { title: 'New video', style: '2D Animation', aspectRatio: '16:9', durationSeconds: 60 },
+    output: { assetId: 'video-1', mimeType: 'video/mp4', sizeBytes: 1234, storagePath: 'users/user-a/jobs/job-new/final.mp4' }
+  });
+  db.data.set('jobs/job-old', {
+    uid: 'user-a', status: 'queued', createdAt: new Date('2026-11-18T10:00:00Z'),
+    attempts: 0, request: { title: 'Old video', style: '3D Realistic', aspectRatio: '9:16', durationSeconds: 30 }
+  });
+  db.data.set('jobs/job-other', {
+    uid: 'user-b', status: 'processing', createdAt: new Date('2026-11-20T10:00:00Z'),
+    request: { title: 'Other user job' }
+  });
+
+  const jobs = await listGenerationJobs(db, { uid: 'user-a', limit: 2 });
+  assert.deepEqual(jobs.map((job) => job.jobId), ['job-new', 'job-old']);
+  assert.equal(jobs[0].request.title, 'New video');
+  assert.equal(jobs[0].request.style, '2D Animation');
+  assert.equal(jobs[0].output.mimeType, 'video/mp4');
+  assert.equal('storagePath' in jobs[0].output, false);
+  assert.equal(jobs[1].status, 'queued');
+});
+
+test('recent generation listing requires a verified UID and clamps the requested limit', async () => {
+  const db = new FakeFirestore();
+  await assert.rejects(listGenerationJobs(db, { uid: '' }), TypeError);
+  for (let i = 0; i < 30; i += 1) {
+    db.data.set(`jobs/job-${i}`, { uid: 'user-a', status: 'queued', createdAt: new Date(now.getTime() + i), request: {} });
+  }
+  const jobs = await listGenerationJobs(db, { uid: 'user-a', limit: 100 });
+  assert.equal(jobs.length, 25);
 });

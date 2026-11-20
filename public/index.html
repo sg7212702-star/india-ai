@@ -42,6 +42,15 @@
       </div>
       <p class="auth-footnote">Firebase Web configuration is public project metadata. Admin credentials remain server-only and must never be placed in this page.</p>
     </section>
+    <section class="panel jobs-panel" id="jobsDashboard" hidden aria-labelledby="jobsTitle">
+      <div class="jobs-heading">
+        <div><h2 id="jobsTitle">Your recent generations</h2><p>Private jobs from your account. Refreshes automatically while a job is active.</p></div>
+        <button class="secondary" id="refreshJobs" type="button">Refresh</button>
+      </div>
+      <p class="jobs-status" id="jobsStatus" role="status" aria-live="polite">Sign in to load your jobs.</p>
+      <div class="jobs-list" id="jobsList"><div class="draft-empty">No generations to show yet.</div></div>
+      <p class="jobs-footnote">Progress is shown only when the worker reports a status. This dashboard never invents percentage progress. Authenticated MP4 downloads may temporarily use browser memory for large files.</p>
+    </section>
     <section class="hero">
       <div><div class="eyebrow">Create · Direct · Animate</div><h1>Turn your story into a <span>living world.</span></h1><p>Prepare a scene-led animation project with reference photos, Hindi voice direction, character continuity and your preferred video format.</p></div>
       <div class="hero-note">Your project brief can be saved on this device. Real video generation stays locked until a genuine GPU worker is connected.</div>

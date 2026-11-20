@@ -24,10 +24,19 @@ const accountLabel = $("authAccount");
 const quotaLabel = $("authQuota");
 const roleBadge = $("authRole");
 const logoutButton = $("authLogout");
+const jobsPanel = $("jobsDashboard");
+const jobsStatus = $("jobsStatus");
+const jobsList = $("jobsList");
+const refreshJobsButton = $("refreshJobs");
+
 
 let auth = null;
 let mode = "signin";
 let busy = false;
+let jobsUser = null;
+let jobsTimer = null;
+let jobsLoading = false;
+
 
 function setStatus(message, state = "info") {
   status.textContent = message;
@@ -75,6 +84,111 @@ async function fetchJson(url, token) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || `Request failed (${response.status}).`);
   return body;
+}
+
+function escapeJobsHtml(value) {
+  return String(value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
+function formatJobDate(value) {
+  if (!value) return "Date unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  return date.toLocaleString();
+}
+
+function formatJobDuration(seconds) {
+  if (!Number.isInteger(seconds) || seconds <= 0) return "Duration not set";
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m${seconds % 60 ? ` ${seconds % 60}s` : ""}`;
+}
+
+function scheduleJobsRefresh(user, active) {
+  window.clearTimeout(jobsTimer);
+  jobsTimer = window.setTimeout(() => refreshJobs(user), active ? 15000 : 60000);
+}
+
+function renderJobs(items) {
+  if (!Array.isArray(items) || !items.length) {
+    jobsList.innerHTML = '<div class="draft-empty">No generations yet. Your queued and completed videos will appear here.</div>';
+    return;
+  }
+  const labels = { queued: "Queued", processing: "Processing", completed: "Completed", failed: "Failed", unknown: "Unknown" };
+  jobsList.innerHTML = items.map((job) => {
+    const title = escapeJobsHtml(job.request?.title || "Untitled animation");
+    const status = labels[job.status] || labels.unknown;
+    const style = escapeJobsHtml(job.request?.style || "Animation");
+    const ratio = escapeJobsHtml(job.request?.aspectRatio || "—");
+    const duration = formatJobDuration(job.request?.durationSeconds);
+    const date = escapeJobsHtml(formatJobDate(job.createdAt));
+    const detail = job.status === "queued" ? "Waiting for a compatible worker."
+      : job.status === "processing" ? "Worker has claimed this job; progress is not reported as a percentage."
+      : job.status === "completed" ? "Video is marked complete by the server."
+      : job.status === "failed" ? "Generation failed. The server handles quota refund on final failure."
+      : "Status is not recognized.";
+    const download = job.status === "completed" && job.output?.mimeType === "video/mp4"
+      ? `<button class="job-download" type="button" data-download="${escapeJobsHtml(job.jobId)}">Download MP4</button>`
+      : "";
+    return `<article class="job-card"><div class="job-card-main"><div class="job-card-title"><strong>${title}</strong><span class="job-status-pill" data-status="${escapeJobsHtml(job.status)}">${status}</span></div><small class="job-card-meta">${style} · ${ratio} · ${duration} · ${date}</small><span class="job-card-detail">${detail}</span></div>${download}</article>`;
+  }).join("");
+}
+
+async function refreshJobs(user = jobsUser, manual = false) {
+  if (!user || jobsLoading) return;
+  jobsLoading = true;
+  if (manual) jobsStatus.textContent = "Refreshing your generation history…";
+  try {
+    const token = await user.getIdToken();
+    const response = await fetch("/api/generation/jobs?limit=10", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store"
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || `Could not load jobs (${response.status}).`);
+    const items = Array.isArray(body.items) ? body.items : [];
+    renderJobs(items);
+    const active = items.some((job) => job.status === "queued" || job.status === "processing");
+    jobsStatus.textContent = items.length ? `Showing ${items.length} recent generation job(s).` : "No generation jobs found.";
+    jobsStatus.dataset.state = "success";
+    scheduleJobsRefresh(user, active);
+  } catch (error) {
+    jobsStatus.textContent = error.message || "Could not load generation history.";
+    jobsStatus.dataset.state = "warning";
+    scheduleJobsRefresh(user, false);
+  } finally {
+    jobsLoading = false;
+  }
+}
+
+async function downloadJob(user, jobId, button) {
+  button.disabled = true;
+  button.textContent = "Preparing download…";
+  try {
+    const token = await user.getIdToken();
+    const response = await fetch(`/api/generation/jobs/${encodeURIComponent(jobId)}/download`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store"
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || `Download failed (${response.status}).`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `animation-${jobId}.mp4`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    button.textContent = "Downloaded";
+  } catch (error) {
+    jobsStatus.textContent = error.message || "Download failed.";
+    jobsStatus.dataset.state = "warning";
+    button.textContent = "Retry download";
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function refreshAccount(user) {
@@ -135,6 +249,11 @@ async function boot() {
     setBusy(false);
 
     onAuthStateChanged(auth, async (user) => {
+      window.clearTimeout(jobsTimer);
+      jobsUser = user || null;
+      jobsPanel.hidden = !user;
+      if (user) refreshJobs(user);
+
       if (user) {
         setBusy(true);
         await refreshAccount(user);
@@ -144,6 +263,10 @@ async function boot() {
         signedInPanel.hidden = true;
         roleBadge.hidden = true;
         setStatus("Sign in or create an account to view your private quota.", "info");
+        jobsStatus.textContent = "Sign in to see your generation history.";
+        jobsStatus.dataset.state = "info";
+        jobsList.innerHTML = '<div class="draft-empty">Your private jobs will appear after sign-in.</div>';
+
         setBusy(false);
       }
     });
@@ -215,4 +338,12 @@ logoutButton.addEventListener("click", async () => {
   }
 });
 
+
+refreshJobsButton?.addEventListener("click", () => refreshJobs(jobsUser, true));
+jobsList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-download]");
+  if (button && jobsUser) downloadJob(jobsUser, button.dataset.download, button);
+});
+
 boot();
+

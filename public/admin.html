@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b12">
+  <meta name="description" content="Read-only administration dashboard for AI Animation Studio.">
+  <title>AI Animation Studio · Admin</title>
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="admin-topbar">
+      <div class="admin-brand"><span class="admin-mark">A</span><div>AI Animation Studio<small>Admin console · read-only</small></div></div>
+      <a class="admin-back" href="/">← Back to Studio</a>
+    </header>
+    <section class="admin-intro">
+      <div class="admin-eyebrow">CONTROL ROOM</div>
+      <h1>System overview</h1>
+      <p>Account and generation monitoring. This console does not expose prompts, story text, private storage paths, or video files.</p>
+    </section>
+    <section class="admin-panel" aria-labelledby="authTitle">
+      <h2 id="authTitle">Administrator access</h2>
+      <p id="adminAuthStatus" role="status" aria-live="polite">Checking Firebase configuration…</p>
+      <div id="adminLoginHint" hidden><a class="admin-button" href="/">Sign in on the Studio page</a></div>
+    </section>
+    <section id="adminDashboard" hidden>
+      <div class="admin-toolbar"><div><h2>Snapshot</h2><p id="overviewMeta">Metrics are sampled, not global billing totals.</p></div><button id="adminRefresh" class="admin-button" type="button">Refresh data</button></div>
+      <div id="metricsGrid" class="metrics-grid"></div>
+      <div class="admin-columns">
+        <section class="admin-panel" aria-labelledby="usersTitle">
+          <div class="admin-section-heading"><div><h2 id="usersTitle">User accounts</h2><p>Firebase Auth records · paginated</p></div><button id="usersRefresh" class="admin-button small" type="button">Refresh</button></div>
+          <p id="usersStatus" class="section-status" role="status" aria-live="polite"></p>
+          <div class="table-wrap"><table><thead><tr><th>Account</th><th>Verified</th><th>State</th><th>Last sign-in</th><th>UID</th></tr></thead><tbody id="usersTable"></tbody></table></div>
+          <div class="table-actions"><button id="usersNext" class="admin-button small" type="button" disabled>Next page</button></div>
+        </section>
+        <section class="admin-panel" aria-labelledby="jobsTitle">
+          <div class="admin-section-heading"><div><h2 id="jobsTitle">Generation jobs</h2><p>Latest scanned jobs · private content omitted</p></div><button id="jobsRefresh" class="admin-button small" type="button">Refresh</button></div>
+          <div class="filter-row"><label for="jobStatusFilter">Status filter</label><select id="jobStatusFilter"><option value="">All statuses</option><option value="queued">Queued</option><option value="processing">Processing</option><option value="completed">Completed</option><option value="failed">Failed</option></select></div>
+          <p id="jobsStatus" class="section-status" role="status" aria-live="polite"></p>
+          <div class="table-wrap"><table><thead><tr><th>Job</th><th>User UID</th><th>Status</th><th>Format</th><th>Created</th><th>Failure</th></tr></thead><tbody id="jobsTable"></tbody></table></div>
+        </section>
+      </div>
+    </section>
+    <footer class="admin-footer">Admin API is read-only in this phase. User-role changes, job retries, and quota edits are not available here.</footer>
+  </main>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>

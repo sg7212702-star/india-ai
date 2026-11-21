@@ -26,6 +26,7 @@
 .text-button{border:0;background:transparent;color:var(--cyan);font-size:11px;padding:8px}
 .auth-signed-in{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--line);border-radius:13px;background:#ffffff05}
 .auth-signed-in strong,.auth-signed-in small{display:block}
+.auth-signed-in a.secondary{display:inline-block;text-decoration:none}
 .auth-signed-in strong{font-size:12px;overflow-wrap:anywhere}
 .auth-signed-in small{font-size:11px;color:var(--muted);margin-top:3px}
 .auth-footnote{font-size:10px;color:#8994ab;margin:10px 0 0}

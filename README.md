@@ -37,6 +37,14 @@ A separate worker runner and process entrypoint now exist in `worker/`. The runn
 - Scene density is capped at an eight-second planning target. If the supplied text is too short for the selected duration, the response reports the supported planned duration and asks for more real story beats instead of inventing filler.
 - `public/scene-planner.js` renders the scene breakdown and exports the manifest from the project builder.
 
+## Read-only admin console
+
+- `/admin.html` is a role-gated monitoring page; the server requires a verified Firebase token and the `admin: true` custom claim for every admin endpoint.
+- `GET /api/admin/overview` returns a sampled user count (up to 1,000 Auth records) and status counts for the latest 100 jobs; these are samples, not billing totals.
+- `GET /api/admin/users` paginates sanitized Firebase Auth records. Password hashes, salts and custom claims are not returned.
+- `GET /api/admin/jobs` filters the latest 100 scanned jobs and returns a limited sanitized summary; prompt/story text, worker metadata and private Storage paths are omitted.
+- The admin console is read-only for this phase. It does not disable users, grant roles, retry jobs, modify quota or access video files.
+
 ## Video generation status
 
 **Real video generation is intentionally disabled.** The Generate control remains unavailable and `/api/health` reports `videoGenerationReady: false`. No slideshow is substituted for a real motion-video result.

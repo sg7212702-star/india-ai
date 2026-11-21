@@ -24,6 +24,7 @@ const accountLabel = $("authAccount");
 const quotaLabel = $("authQuota");
 const roleBadge = $("authRole");
 const logoutButton = $("authLogout");
+const adminLink = $("authAdminLink");
 const jobsPanel = $("jobsDashboard");
 const jobsStatus = $("jobsStatus");
 const jobsList = $("jobsList");
@@ -209,6 +210,7 @@ async function refreshAccount(user) {
     const quota = quotaResult.status === "fulfilled" ? quotaResult.value : null;
 
     roleBadge.textContent = profile ? (profile.admin ? "ADMIN" : "MEMBER") : "ACCOUNT";
+    if (adminLink) adminLink.hidden = profile?.admin !== true;
     if (quota) {
       quotaLabel.textContent = `${quota.used} of ${quota.limit} generations used today · ${quota.remaining} remaining${quota.activeJobId ? " · one job is active" : ""}`;
     } else {
@@ -262,6 +264,7 @@ async function boot() {
         form.hidden = false;
         signedInPanel.hidden = true;
         roleBadge.hidden = true;
+        if (adminLink) adminLink.hidden = true;
         setStatus("Sign in or create an account to view your private quota.", "info");
         jobsStatus.textContent = "Sign in to see your generation history.";
         jobsStatus.dataset.state = "info";

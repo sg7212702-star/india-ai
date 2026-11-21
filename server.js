@@ -20,6 +20,7 @@ import {
 import { getGenerationJob, listGenerationJobs } from './lib/generation-queue.js';
 import { createScenePlan } from './lib/scene-planner.js';
 import { privateVideoObjectPath, parseVideoByteRange } from './lib/private-video.js';
+import { getAdminOverview, listAdminJobs, normalizeAdminLimit, normalizeAdminStatus, sanitizeAdminUser } from './lib/admin-dashboard.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -137,6 +138,11 @@ async function requireFirebaseUser(req, res, next) {
   } catch {
     return res.status(401).json({ error: 'Your sign-in token is invalid or expired. Sign in again.' });
   }
+}
+
+function requireFirebaseAdmin(req, res, next) {
+  if (req.firebaseUser?.admin !== true) return res.status(403).json({ error: 'Administrator access is required.' });
+  return next();
 }
 
 app.get('/api/config', (_req, res) => {
@@ -326,6 +332,55 @@ app.get('/api/generation/jobs', requireFirebaseUser, async (req, res) => {
   } catch (error) {
     console.error('Could not list generation jobs:', error);
     return res.status(500).json({ error: 'Could not list your generation jobs.' });
+  }
+});
+
+
+app.get('/api/admin/overview', requireFirebaseUser, requireFirebaseAdmin, async (_req, res) => {
+  if (!firebaseAuth || !firestore) return res.status(503).json({ error: 'Firebase Auth and Firestore Admin are required for the admin console.' });
+  try {
+    const overview = await getAdminOverview(firebaseAuth, firestore, { scanLimit: 100 });
+    res.set('Cache-Control', 'private, no-store');
+    return res.json(overview);
+  } catch (error) {
+    console.error('Admin overview request failed:', error);
+    return res.status(500).json({ error: 'Could not load the admin overview.' });
+  }
+});
+
+app.get('/api/admin/users', requireFirebaseUser, requireFirebaseAdmin, async (req, res) => {
+  if (!firebaseAuth) return res.status(503).json({ error: 'Firebase Auth Admin is not configured.' });
+  const limit = normalizeAdminLimit(req.query.limit, 25, 100);
+  const pageToken = req.query.pageToken;
+  if (pageToken !== undefined && (typeof pageToken !== 'string' || pageToken.length > 2000)) {
+    return res.status(400).json({ error: 'Invalid user page token.' });
+  }
+  try {
+    const page = await firebaseAuth.listUsers(limit, pageToken || undefined);
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ items: page.users.map(sanitizeAdminUser), nextPageToken: page.pageToken || null, limit });
+  } catch (error) {
+    console.error('Admin user list request failed:', error);
+    return res.status(500).json({ error: 'Could not list Firebase accounts.' });
+  }
+});
+
+app.get('/api/admin/jobs', requireFirebaseUser, requireFirebaseAdmin, async (req, res) => {
+  if (!firestore) return res.status(503).json({ error: 'Firestore Admin is not configured.' });
+  let status;
+  try {
+    status = normalizeAdminStatus(req.query.status);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
+  const limit = normalizeAdminLimit(req.query.limit, 25, 100);
+  try {
+    const result = await listAdminJobs(firestore, { status, limit, scanLimit: 100 });
+    res.set('Cache-Control', 'private, no-store');
+    return res.json(result);
+  } catch (error) {
+    console.error('Admin job list request failed:', error);
+    return res.status(500).json({ error: 'Could not list generation jobs for the admin console.' });
   }
 });
 

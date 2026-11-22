@@ -107,7 +107,7 @@ There is no adapter or GPU model included yet. Do not enable queue intake or des
 ## 9. Admin bootstrap
 
 
-Do not add an admin email or password to source code. Use a one-time private server-side command to set the Firebase custom claim `admin: true` on the owner's UID. Run it locally with a private service-account credential excluded by `.gitignore`, then remove or disable the bootstrap command. The Admin SDK bypasses Firestore rules, so every future admin endpoint must independently verify the `admin` custom claim. An admin dashboard and admin API routes are not implemented yet.
+Do not add an admin email or password to source code. Use a one-time private server-side command to set the Firebase custom claim `admin: true` on the owner's UID. Run it locally with a private service-account credential excluded by `.gitignore`, then remove or disable the bootstrap command. The Admin SDK bypasses Firestore rules, so every admin endpoint must independently verify the `admin` custom claim. Read-only admin console pages and APIs exist in the repository, but are not deployed or live until Firebase is configured and an owner UID is granted the claim. Do not expose service-account credentials or add an admin password to source code.
 
 ## 10. Private MP4 streaming/download foundation
 

@@ -32,6 +32,7 @@ await fs.mkdir(generatedDir, { recursive: true });
 
 const geminiApiEnabled = process.env.ENABLE_GEMINI_API === 'true';
 const generationQueueEnabled = process.env.GENERATION_QUEUE_ENABLED === 'true';
+const referenceImageUploadEnabled = process.env.REFERENCE_IMAGE_UPLOAD_ENABLED === 'true';
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
 function initializeFirebaseAdmin() {
@@ -166,6 +167,7 @@ app.get('/api/health', (_req, res) => res.json({
   features: {
     geminiApiEnabled,
     generationQueueEnabled,
+    referenceImageUploadEnabled,
     firebaseAdminConfigured: Boolean(firebaseApp),
     videoGenerationReady: false
   }
@@ -206,6 +208,9 @@ app.get('/api/auth/me', requireFirebaseUser, (req, res) => {
 });
 
 app.post('/api/assets/reference-photo', requireFirebaseUser, async (req, res) => {
+  if (!referenceImageUploadEnabled) {
+    return res.status(503).json({ error: 'Reference-photo uploads are disabled. Enable only after reviewing storage billing and privacy requirements.' });
+  }
   if (!firestore || !privateVideoBucket) {
     return res.status(503).json({ error: 'Private Firebase Storage and Firestore are required for reference-photo uploads.' });
   }

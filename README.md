@@ -6,7 +6,7 @@ A work-in-progress project builder for story-led 2D and realistic 3D animation.
 
 The responsive project-builder shell is available at `public/index.html`, with external `public/styles.css` and `public/app.js` assets. It can prepare a brief from a text prompt, a full story, or a reference photo plus story; choose 2D or realistic 3D, 9:16 or 16:9, a target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
 
-Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not yet synced to a user account or server. A selected reference photo is previewed locally only and must be selected again after reopening a saved brief.
+Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not yet synced to a user account or server. A selected reference photo is previewed locally only and must be selected again after reopening a saved brief. A server-side upload API exists as a backend foundation but is not connected to this UI.
 
 ## Account and quota foundation
 
@@ -49,7 +49,7 @@ A separate worker runner and process entrypoint now exist in `worker/`. The runn
 
 **Real video generation is intentionally disabled.** The Generate control remains unavailable and `/api/health` reports `videoGenerationReady: false`. No slideshow is substituted for a real motion-video result.
 
-The worker orchestration is present. An authenticated private MP4 streaming/download route has been added, but it requires bucket configuration and an uploaded verified video before it can work. The repository still does not include a GPU model adapter, multi-scene video pipeline, Hindi TTS/lip-sync integration, private image/video storage, FFmpeg assembly, or admin dashboard.
+The worker orchestration is present. An authenticated private MP4 streaming/download route and an authenticated private reference-photo upload API have been added; both require a configured Storage bucket and security controls. The photo-upload API is not yet wired to the browser UI, and photo-story generation still rejects requests. The repository still does not include a GPU model adapter, multi-scene video pipeline, Hindi TTS/lip-sync integration, FFmpeg assembly, or a deployed admin dashboard.
 
 ## Run locally
 
@@ -68,3 +68,16 @@ Never put API keys or Firebase Admin credentials in frontend code or commit a re
 The legacy text/image limits are in-memory and IP-based. They are not production user quotas. Free CPU hosting can serve the website and lightweight API/worker orchestration, but it cannot reliably run modern video-generation models. A genuine video adapter requires compatible GPU compute; no free hosted GPU is assumed. See [worker documentation](./worker/README.md) for the adapter contract and safety gate.
 
 See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) and [AI_ANIMATION_STUDIO_BUILD_PLAN.md](./AI_ANIMATION_STUDIO_BUILD_PLAN.md) for setup, security, and the implementation roadmap.
+
+
+## Private reference-photo upload API (backend only)
+
+- `POST /api/assets/reference-photo` requires a verified Firebase ID token.
+- Accepts base64 JSON for JPEG, PNG or WebP images up to 5 MiB and checks MIME against basic file signatures.
+- Stores under a server-derived `users/{uid}/references/{assetId}.{ext}` path and creates a server-only Firestore asset record.
+- The response returns only an asset ID, MIME type and size; no Storage path or public URL.
+- Requires `FIREBASE_STORAGE_BUCKET`, Uniform Bucket-Level Access, and Public Access Prevention enforced.
+- This endpoint is not yet wired into the browser builder; photo-story job creation remains unavailable.
+- Firebase Storage access requires the Blaze billing plan as of February 3, 2026. Zero-budget users should not configure this bucket or attach billing merely to test the endpoint.
+
+The helper unit tests validate supported signatures, base64, MIME mismatch, size limit and UID-scoped object paths. Full image decoding/dimension validation and the end-to-end Firebase Storage smoke test are still outstanding.

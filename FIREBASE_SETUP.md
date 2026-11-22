@@ -130,13 +130,13 @@ Never represent a queued brief as a generated video. Do not substitute still-ima
 
 ## 12. Private reference-photo upload API (backend-only)
 
-The server now has `POST /api/assets/reference-photo`. It requires a verified Firebase ID token and accepts JSON with:
+The server now has `POST /api/assets/reference-photo`, but it is disabled unless `REFERENCE_IMAGE_UPLOAD_ENABLED=true` is set on the server. It requires a verified Firebase ID token and accepts JSON with:
 
 - `mimeType`: `image/jpeg`, `image/png`, or `image/webp`
 - `data`: base64-encoded image bytes (without a data-URL prefix)
 
 The payload is limited to 5 MiB decoded size. The server checks the declared MIME type against basic JPEG/PNG/WebP signatures, derives an object path under `users/{uid}/references/{assetId}.{ext}`, stores the file without a public URL, and creates an `assets/{assetId}` Firestore record. The response returns only `assetId`, `mimeType`, `sizeBytes`, and `status`.
 
-Before upload, the route requires a bucket with Uniform Bucket-Level Access enabled and Public Access Prevention enforced. It is not yet wired to the browser builder; photo-story generation still returns unavailable. Signature checks are not full image decoding or pixel-dimension validation.
+Before upload, the route requires a bucket with Uniform Bucket-Level Access enabled and Public Access Prevention enforced. It is not wired to the browser builder; photo-story generation still returns unavailable. Keep the flag false in all zero-budget environments. Signature checks are not full image decoding or pixel-dimension validation.
 
 **Zero-budget warning:** Firebase Cloud Storage access requires the Blaze pay-as-you-go plan starting February 3, 2026. This endpoint cannot be used on the no-billing Spark plan. Do not link billing or create a bucket just to test it. See the official [Firebase Storage billing FAQ](https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024) before enabling Storage.

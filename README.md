@@ -72,11 +72,11 @@ See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) and [AI_ANIMATION_STUDIO_BUILD_PLAN
 
 ## Private reference-photo upload API (backend only)
 
-- `POST /api/assets/reference-photo` requires a verified Firebase ID token.
+- `POST /api/assets/reference-photo` requires a verified Firebase ID token and `REFERENCE_IMAGE_UPLOAD_ENABLED=true` (false by default).
 - Accepts base64 JSON for JPEG, PNG or WebP images up to 5 MiB and checks MIME against basic file signatures.
 - Stores under a server-derived `users/{uid}/references/{assetId}.{ext}` path and creates a server-only Firestore asset record.
 - The response returns only an asset ID, MIME type and size; no Storage path or public URL.
-- Requires `FIREBASE_STORAGE_BUCKET`, Uniform Bucket-Level Access, and Public Access Prevention enforced.
+- Requires `FIREBASE_STORAGE_BUCKET`, Uniform Bucket-Level Access, and Public Access Prevention enforced. The route refuses uploads unless the opt-in flag is enabled.
 - This endpoint is not yet wired into the browser builder; photo-story job creation remains unavailable.
 - Firebase Storage access requires the Blaze billing plan as of February 3, 2026. Zero-budget users should not configure this bucket or attach billing merely to test the endpoint.
 

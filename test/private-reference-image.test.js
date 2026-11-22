@@ -3,9 +3,31 @@ import assert from 'node:assert/strict';
 import { decodeReferenceImagePayload, privateReferenceImageObjectPath } from '../lib/private-reference-image.js';
 
 const b64 = (bytes) => Buffer.from(bytes).toString('base64');
-const jpeg = [0xff, 0xd8, 0xff, 0x00];
-const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00];
-const webp = [...Buffer.from('RIFF'), 0x00, 0x00, 0x00, 0x00, ...Buffer.from('WEBP'), 0x00];
+const jpeg = [0xff, 0xd8, 0xff, 0x00, 0xff, 0xd9];
+function makePng() {
+  const bytes = Buffer.alloc(45);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(bytes, 0);
+  bytes.writeUInt32BE(13, 8);
+  bytes.write('IHDR', 12);
+  bytes.writeUInt32BE(1, 16);
+  bytes.writeUInt32BE(1, 20);
+  bytes[24] = 8;
+  bytes[25] = 2;
+  bytes.write('IEND', 37);
+  return [...bytes];
+}
+function makeWebp() {
+  const bytes = Buffer.alloc(22);
+  bytes.write('RIFF', 0);
+  bytes.writeUInt32LE(bytes.length - 8, 4);
+  bytes.write('WEBP', 8);
+  bytes.write('VP8 ', 12);
+  bytes.writeUInt32LE(1, 16);
+  bytes[20] = 0;
+  return [...bytes];
+}
+const png = makePng();
+const webp = makeWebp();
 
 test('accepts a JPEG payload and returns safe metadata', () => {
   const result = decodeReferenceImagePayload({ data: b64(jpeg), mimeType: 'image/jpeg' });

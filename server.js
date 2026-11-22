@@ -20,6 +20,7 @@ import {
 import { getGenerationJob, listGenerationJobs } from './lib/generation-queue.js';
 import { createScenePlan } from './lib/scene-planner.js';
 import { privateVideoObjectPath, parseVideoByteRange } from './lib/private-video.js';
+import { decodeReferenceImagePayload, privateReferenceImageObjectPath } from './lib/private-reference-image.js';
 import { getAdminOverview, listAdminJobs, normalizeAdminLimit, normalizeAdminStatus, sanitizeAdminUser } from './lib/admin-dashboard.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -83,6 +84,7 @@ app.use(helmet({
   }
 }));
 app.use(morgan('tiny'));
+app.use('/api/assets/reference-photo', express.json({ limit: '7mb' }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(publicDir));
 
@@ -201,6 +203,67 @@ app.get('/api/auth/me', requireFirebaseUser, (req, res) => {
     emailVerified: req.firebaseUser.email_verified === true,
     admin: req.firebaseUser.admin === true
   });
+});
+
+app.post('/api/assets/reference-photo', requireFirebaseUser, async (req, res) => {
+  if (!firestore || !privateVideoBucket) {
+    return res.status(503).json({ error: 'Private Firebase Storage and Firestore are required for reference-photo uploads.' });
+  }
+
+  let image;
+  try {
+    image = decodeReferenceImagePayload(req.body || {});
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
+
+  const uid = req.firebaseUser.uid;
+  const assetId = crypto.randomUUID();
+  let storagePath;
+  try {
+    storagePath = privateReferenceImageObjectPath(uid, assetId, image.extension);
+    const [bucketMetadata] = await privateVideoBucket.getMetadata();
+    const iam = bucketMetadata?.iamConfiguration || {};
+    if (iam.uniformBucketLevelAccess?.enabled !== true || iam.publicAccessPrevention !== 'enforced') {
+      return res.status(503).json({
+        error: 'Reference-photo uploads require Uniform Bucket-Level Access and Public Access Prevention to be enforced on the storage bucket.'
+      });
+    }
+
+    const file = privateVideoBucket.file(storagePath);
+    await file.save(image.buffer, {
+      resumable: false,
+      metadata: {
+        contentType: image.mimeType,
+        cacheControl: 'private, no-store, max-age=0',
+        metadata: { uid, assetId, kind: 'reference-photo' }
+      }
+    });
+    try {
+      await firestore.collection('assets').doc(assetId).create({
+        uid,
+        kind: 'reference-photo',
+        mimeType: image.mimeType,
+        sizeBytes: image.sizeBytes,
+        storagePath,
+        createdAt: FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      await file.delete({ ignoreNotFound: true }).catch(() => {});
+      throw error;
+    }
+
+    res.set('Cache-Control', 'private, no-store');
+    return res.status(201).json({
+      assetId,
+      mimeType: image.mimeType,
+      sizeBytes: image.sizeBytes,
+      status: 'stored-private'
+    });
+  } catch (error) {
+    console.error('Private reference photo upload failed:', error);
+    return res.status(500).json({ error: 'Could not store the reference photo securely.' });
+  }
 });
 
 app.get('/api/generation/quota', requireFirebaseUser, async (req, res) => {

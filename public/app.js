@@ -54,7 +54,7 @@ import { parseDraftImport } from "./draft-import.js";
         try{
           const parsed=parseDraftImport(await file.text());
           const existing=readDrafts();
-          const combined=[...parsed.drafts,...existing].slice(0,20);
+          const capacity=Math.max(0,20-existing.length);const accepted=parsed.drafts.slice(0,capacity);const combined=[...existing,...accepted];
           writeDrafts(combined);
           renderDrafts();
           const stored=Math.min(parsed.drafts.length,Math.max(0,20-existing.length));

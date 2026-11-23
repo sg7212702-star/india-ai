@@ -1,4 +1,4 @@
-import { parseDraftImport } from "./draft-import.js";
+import { parseDraftImport, mergeImportedDrafts } from "./draft-import.js";
 (function(){
       const $ = (id) => document.getElementById(id);
       const STORE_KEY = "ai-animation-studio-drafts-v1";
@@ -54,11 +54,11 @@ import { parseDraftImport } from "./draft-import.js";
         try{
           const parsed=parseDraftImport(await file.text());
           const existing=readDrafts();
-          const capacity=Math.max(0,20-existing.length);const accepted=parsed.drafts.slice(0,capacity);const combined=[...existing,...accepted];
-          writeDrafts(combined);
+          const merged=mergeImportedDrafts(existing,parsed.drafts);
+          writeDrafts(merged.drafts);
           renderDrafts();
-          const stored=accepted.length;
-          const clipped=parsed.drafts.length-stored;
+          const stored=merged.importedCount;
+          const clipped=merged.skippedCount;
           const photoNote=parsed.photoReferenceCount?" Photo-story projects need their reference photos re-selected.":"";
           toast(`Imported ${stored} project${stored===1?"":"s"}.${clipped?" "+clipped+" not added (20-draft limit).":""}${photoNote}`);
         }catch(error){toast(error.message||"Could not import project file.");}

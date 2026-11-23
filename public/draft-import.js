@@ -51,7 +51,7 @@ function normalizeDraft(source, { idFactory, now }) {
 }
 
 export function parseDraftImport(text, {
-  idFactory = () => "import-" + globalThis.crypto?.randomUUID?.() || "import-" + Date.now(),
+  idFactory = () => { const uuid = globalThis.crypto?.randomUUID?.(); return uuid ? "import-" + uuid : "import-" + Date.now() + "-" + Math.random().toString(36).slice(2); },
   now = () => new Date(),
   maxBytes = MAX_FILE_BYTES,
   maxDrafts = MAX_DRAFTS

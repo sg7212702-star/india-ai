@@ -8,6 +8,14 @@ The responsive project-builder shell is available at `public/index.html`, with e
 
 Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not yet synced to a user account or server. A selected reference photo is previewed locally only and must be selected again after reopening a saved brief. A server-side upload API exists as a backend foundation but is not connected to this UI.
 
+## Local project brief import/export
+
+- Export saved briefs as JSON and import a single brief, an array, or a `drafts` wrapper.
+- Imports are limited to 1 MiB and 20 projects per file; imported briefs receive new local IDs.
+- Existing local briefs are preserved first; only available slots up to 20 are filled. Additional imported items are reported as skipped.
+- Reference photos are not embedded in exported JSON. Photo-story projects require the photo to be selected again after import.
+- Imported JSON is normalized to allowed modes, styles, aspect ratios, durations and field-length limits. Unknown fields (including photo data) are discarded.
+
 ## Account and quota foundation
 
 - `public/auth.js` provides Firebase email/password sign-up, sign-in, password reset, auth-state handling, and sign-out.

@@ -75,3 +75,14 @@ export function parseDraftImport(text, {
     photoReferenceCount: normalized.filter((draft) => draft.mode === "photo-story").length
   };
 }
+
+export function mergeImportedDrafts(existing, imported, maxDrafts = MAX_DRAFTS) {
+  const current = Array.isArray(existing) ? existing.slice(0, maxDrafts) : [];
+  const candidates = Array.isArray(imported) ? imported : [];
+  const accepted = candidates.slice(0, Math.max(0, maxDrafts - current.length));
+  return {
+    drafts: [...current, ...accepted],
+    importedCount: accepted.length,
+    skippedCount: candidates.length - accepted.length
+  };
+}

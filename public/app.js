@@ -57,7 +57,7 @@ import { parseDraftImport } from "./draft-import.js";
           const capacity=Math.max(0,20-existing.length);const accepted=parsed.drafts.slice(0,capacity);const combined=[...existing,...accepted];
           writeDrafts(combined);
           renderDrafts();
-          const stored=Math.min(parsed.drafts.length,Math.max(0,20-existing.length));
+          const stored=accepted.length;
           const clipped=parsed.drafts.length-stored;
           const photoNote=parsed.photoReferenceCount?" Photo-story projects need their reference photos re-selected.":"";
           toast(`Imported ${stored} project${stored===1?"":"s"}.${clipped?" "+clipped+" not added (20-draft limit).":""}${photoNote}`);

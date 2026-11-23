@@ -78,7 +78,7 @@ test("normalizes optional settings and ignores embedded photo data", () => {
 test("merge appends imported projects without replacing saved drafts", () => {
   const existing = Array.from({ length: 19 }, (_, i) => ({ id: `saved-${i}` }));
   const imported = [{ id: "new-a" }, { id: "new-b" }, { id: "new-c" }];
-  const merged = (awaitImportMerge(existing, imported));
+  const merged = (mergeForTest(existing, imported));
   assert.equal(merged.drafts.length, 20);
   assert.equal(merged.drafts[0].id, "saved-0");
   assert.equal(merged.drafts[19].id, "new-a");

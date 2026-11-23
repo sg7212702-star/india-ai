@@ -17,7 +17,7 @@ const validPrompt = {
   updatedAt: "2026-11-22T09:00:00.000Z"
 };
 
-function awaitImportMerge(existing, imported) { return mergeImportedDrafts(existing, imported); }
+function mergeForTest(existing, imported) { return mergeImportedDrafts(existing, imported); }
 
 function parse(text, options = {}) {
   let counter = 0;
@@ -84,4 +84,13 @@ test("merge appends imported projects without replacing saved drafts", () => {
   assert.equal(merged.drafts[19].id, "new-a");
   assert.equal(merged.importedCount, 1);
   assert.equal(merged.skippedCount, 2);
+});
+
+test("keeps all saved drafts when the local list is already full", () => {
+  const existing = Array.from({ length: 20 }, (_, i) => ({ id: `saved-${i}` }));
+  const merged = mergeForTest(existing, [{ id: "new" }]);
+  assert.equal(merged.drafts.length, 20);
+  assert.equal(merged.drafts[19].id, "saved-19");
+  assert.equal(merged.importedCount, 0);
+  assert.equal(merged.skippedCount, 1);
 });

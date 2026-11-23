@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseDraftImport } from "../public/draft-import.js";
+import { parseDraftImport, mergeImportedDrafts } from "../public/draft-import.js";
 
 const validPrompt = {
   name: "River story",
@@ -16,6 +16,8 @@ const validPrompt = {
   characterContinuity: true,
   updatedAt: "2026-11-22T09:00:00.000Z"
 };
+
+function awaitImportMerge(existing, imported) { return mergeImportedDrafts(existing, imported); }
 
 function parse(text, options = {}) {
   let counter = 0;
@@ -71,4 +73,15 @@ test("normalizes optional settings and ignores embedded photo data", () => {
   assert.equal(result.drafts[0].format, "9:16");
   assert.equal(result.drafts[0].lipSync, false);
   assert.equal("photoData" in result.drafts[0], false);
+});
+
+test("merge appends imported projects without replacing saved drafts", () => {
+  const existing = Array.from({ length: 19 }, (_, i) => ({ id: `saved-${i}` }));
+  const imported = [{ id: "new-a" }, { id: "new-b" }, { id: "new-c" }];
+  const merged = (awaitImportMerge(existing, imported));
+  assert.equal(merged.drafts.length, 20);
+  assert.equal(merged.drafts[0].id, "saved-0");
+  assert.equal(merged.drafts[19].id, "new-a");
+  assert.equal(merged.importedCount, 1);
+  assert.equal(merged.skippedCount, 2);
 });

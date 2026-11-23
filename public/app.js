@@ -1,3 +1,4 @@
+import { parseDraftImport } from "./draft-import.js";
 (function(){
       const $ = (id) => document.getElementById(id);
       const STORE_KEY = "ai-animation-studio-drafts-v1";
@@ -22,7 +23,7 @@
         if(mode==="photo-story"&&!photoData)return "Choose a reference photo for this project.";
         return "";
       }
-      function downloadJson(data,filename){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);}
+      function downloadJson(data,filename){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;a.style.display="none";document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);}
       function renderDrafts(){
         const list=$("draftList"),items=readDrafts().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
         if(!items.length){list.innerHTML='<div class="draft-empty">No saved briefs yet. Create one on the left.</div>';return;}
@@ -47,6 +48,22 @@
         try{writeDrafts(items.slice(0,20));currentDraftId=payload.id;renderDrafts();toast("Project brief saved on this device.");}
         catch(_){toast("Could not save: this browser may be out of local storage.");}
       }
+      async function importDraftFile(file){
+        if(!file)return;
+        if(file.size>1024*1024){toast("Import file must be 1 MB or smaller.");return;}
+        try{
+          const parsed=parseDraftImport(await file.text());
+          const existing=readDrafts();
+          const combined=[...parsed.drafts,...existing].slice(0,20);
+          writeDrafts(combined);
+          renderDrafts();
+          const stored=Math.min(parsed.drafts.length,Math.max(0,20-existing.length));
+          const clipped=parsed.drafts.length-stored;
+          const photoNote=parsed.photoReferenceCount?" Photo-story projects need their reference photos re-selected.":"";
+          toast(`Imported ${stored} project${stored===1?"":"s"}.${clipped?" "+clipped+" not added (20-draft limit).":""}${photoNote}`);
+        }catch(error){toast(error.message||"Could not import project file.");}
+        finally{$("draftImportFile").value="";}
+      }
       function selectFile(file){
         if(!file)return;
         if(!["image/jpeg","image/png","image/webp"].includes(file.type)){toast("Please choose a JPG, PNG or WebP image.");return;}
@@ -64,6 +81,8 @@
       $("removePhoto").addEventListener("click",()=>{photoData="";photoLabel="";$("photo").value="";$("photoPreview").classList.remove("show");});
       $("downloadCurrent").addEventListener("click",()=>{const payload=getPayload();const error=validate(payload);if(error){toast(error);return;}downloadJson(payload,"animation-project-brief.json");toast("Project brief downloaded.");});
       $("downloadAll").addEventListener("click",()=>{const items=readDrafts();if(!items.length){toast("There are no saved briefs to export.");return;}downloadJson(items,"animation-studio-drafts.json");});
+      $("importDrafts").addEventListener("click",()=>$("draftImportFile").click());
+      $("draftImportFile").addEventListener("change",event=>importDraftFile(event.target.files[0]));
       $("draftList").addEventListener("click",event=>{const load=event.target.closest("[data-load]"),del=event.target.closest("[data-delete]");if(load)loadDraft(load.dataset.load);if(del){writeDrafts(readDrafts().filter(d=>d.id!==del.dataset.delete));renderDrafts();toast("Draft deleted from this device.");}});
       setMode("prompt");setStyle("3D Realistic");renderDrafts();
     })();

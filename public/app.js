@@ -63,7 +63,10 @@ import { createLocalPhotoStore, validateLocalReferencePhoto } from "./local-phot
           else if(photoRemoved){await photoStore.remove(payload.id);hasSavedPhoto=false;photoRemoved=false;}
           const items=readDrafts();const index=items.findIndex(d=>d.id===payload.id);
           if(index>=0)items[index]=payload;else items.unshift(payload);
-          writeDrafts(items.slice(0,20));currentDraftId=payload.id;renderDrafts();
+          const kept=items.slice(0,20);const keptIds=new Set(kept.map(item=>item.id));
+          const evicted=items.filter(item=>item.referencePhotoName&&!keptIds.has(item.id));
+          writeDrafts(kept);currentDraftId=payload.id;renderDrafts();
+          for(const oldDraft of evicted){try{await photoStore.remove(oldDraft.id);}catch(_){}}
           toast(payload.mode==="photo-story"?"Project and reference photo saved in this browser.":"Project brief saved on this device.");
         }catch(error){toast(error.message||"Could not save the project on this device.");}
         finally{saveButton.disabled=false;}

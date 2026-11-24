@@ -6,7 +6,7 @@ A work-in-progress project builder for story-led 2D and realistic 3D animation.
 
 The responsive project-builder shell is available at `public/index.html`, with external `public/styles.css` and `public/app.js` assets. It can prepare a brief from a text prompt, a full story, or a reference photo plus story; choose 2D or realistic 3D, 9:16 or 16:9, a target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
 
-Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not yet synced to a user account or server. A selected reference photo is previewed locally only and must be selected again after reopening a saved brief. A server-side upload API exists as a backend foundation but is not connected to this UI.
+Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not yet synced to a user account or server. A selected reference photo is stored separately in this browser's IndexedDB and is restored when the same saved brief is reopened. It is not uploaded to a server and is never embedded in a JSON export. A server-side upload API exists as a backend foundation but is not connected to this UI.
 
 ## Local project brief import/export
 
@@ -15,6 +15,15 @@ Project briefs are saved in the current browser's local storage and can be expor
 - Existing local briefs are preserved first; only available slots up to 20 are filled. Additional imported items are reported as skipped.
 - Reference photos are not embedded in exported JSON. Photo-story projects require the photo to be selected again after import.
 - Imported JSON is normalized to allowed modes, styles, aspect ratios, durations and field-length limits. Unknown fields (including photo data) are discarded.
+
+## Browser-local reference photo storage
+
+- `public/local-photo-store.js` stores the selected JPEG, PNG or WebP as a Blob in IndexedDB, keyed by the local project ID. The size limit is 8 MiB per selected image.
+- Reopening the project in the same browser restores the preview without reading the image into localStorage. Deleting a project also attempts to remove its stored image.
+- Photos are not uploaded, are not synced to the user's account, and are excluded from JSON exports/imports. Moving a project to another browser/device requires selecting the reference photo again.
+- Browser site-data clearing, private-browsing restrictions, quota limits or browser storage eviction can remove local photos. The project brief remains text-only and can still be exported as JSON.
+- If IndexedDB is unavailable or a write fails, a photo-story brief is not reported as saved; text-only briefs remain usable.
+
 
 ## Account and quota foundation
 

@@ -92,6 +92,23 @@
             <button class="secondary character-add" type="button" id="addCharacter">Add character</button>
             <div class="character-list" id="characterList" aria-live="polite"><div class="draft-empty">No character references yet. Add the main character first.</div></div>
           </div>
+          <div class="field character-library" id="characterLibrary">
+            <div class="label-row"><label>Character reference library</label><span class="hint" id="characterCount">0/8 characters</span></div>
+            <p class="character-help">Add reusable character profiles for this story. Descriptions and names are included in project JSON; reference photos stay in this browser and are never exported.</p>
+            <div class="two-col character-fields">
+              <div><label class="hint" for="characterName">Character name</label><input class="control" id="characterName" maxlength="60" placeholder="e.g. Dadaji"></div>
+              <div><label class="hint" for="characterRole">Story role</label><input class="control" id="characterRole" maxlength="60" placeholder="e.g. Main character"></div>
+            </div>
+            <div class="field character-description-field"><label class="hint" for="characterDescription">Appearance / continuity notes</label><textarea class="control" id="characterDescription" maxlength="1000" rows="2" placeholder="Age, face, hair, clothing, colors and distinctive details to preserve..."></textarea></div>
+            <div class="character-photo-row">
+              <input type="file" id="characterPhoto" accept="image/png,image/jpeg,image/webp" hidden>
+              <button class="secondary" type="button" id="chooseCharacterPhoto">Add reference photo (optional)</button>
+              <span class="hint">JPG / PNG / WebP · max 8 MB</span>
+            </div>
+            <div class="character-photo-preview" id="characterPhotoPreview" hidden><img id="characterPhotoPreviewImage" alt="Character reference preview"><span id="characterPhotoPreviewName"></span><button type="button" id="removeCharacterPhoto">Clear</button></div>
+            <button class="secondary character-add" type="button" id="addCharacter">Add character</button>
+            <div class="character-list" id="characterList" aria-live="polite"><div class="draft-empty">No character references yet. Add the main character first.</div></div>
+          </div>
           <div class="field">
             <div class="label-row"><label for="projectName">Project name</label><span class="hint">Shown in your draft list</span></div>
             <input class="control" id="projectName" maxlength="80" placeholder="e.g. The Secret of the Black River">

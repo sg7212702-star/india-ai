@@ -16,7 +16,7 @@ function libraryError(message) {
 }
 
 function cleanText(value, maxLength) {
-  return typeof value === "string" ? value.trim().replace(/\\s+/gu, " ").slice(0, maxLength) : "";
+  return typeof value === "string" ? value.trim().replace(/\s+/gu, " ").slice(0, maxLength) : "";
 }
 
 function cleanFileName(value) {

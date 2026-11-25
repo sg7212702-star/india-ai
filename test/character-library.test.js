@@ -94,6 +94,10 @@ test("normalizes a character bible entry and bounds user text", () => {
   });
 });
 
+test("omits optional photo metadata when no photo was selected", () => {
+  assert.equal(normalizeCharacter({ id: "char-no-photo", name: "Pigeon" }).photoName, "");
+});
+
 test("requires a name and rejects invalid character IDs", () => {
   assert.throws(() => normalizeCharacter({ name: " " }), /Enter a name/);
   assert.throws(() => normalizeCharacter({ id: "../unsafe", name: "Hero" }), /Character ID is invalid/);

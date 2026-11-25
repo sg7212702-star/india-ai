@@ -4,7 +4,7 @@ A work-in-progress project builder for story-led 2D and realistic 3D animation.
 
 ## Current status
 
-The responsive project-builder shell is available at `public/index.html`, with external `public/styles.css` and `public/app.js` assets. It can prepare a brief from a text prompt, a full story, or a reference photo plus story; choose 2D or realistic 3D, 9:16 or 16:9, a target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
+The responsive project-builder shell is available at `public/index.html`, with external `public/styles.css` and `public/app.js` assets. It can prepare a brief from a text prompt, a full story, or a reference photo plus story; add up to eight local character profiles; choose 2D or realistic 3D, 9:16 or 16:9, a target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
 
 Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not yet synced to a user account or server. A selected reference photo is stored separately in this browser's IndexedDB and is restored when the same saved brief is reopened. It is not uploaded to a server and is never embedded in a JSON export. A server-side upload API exists as a backend foundation but is not connected to this UI.
 
@@ -21,6 +21,14 @@ Project briefs are saved in the current browser's local storage and can be expor
 - `public/local-photo-store.js` stores the selected JPEG, PNG or WebP as a Blob in IndexedDB, keyed by the local project ID. The size limit is 8 MiB per selected image.
 - Reopening the project in the same browser restores the preview without reading the image into localStorage. Deleting a project also attempts to remove its stored image.
 - Photos are not uploaded, are not synced to the user's account, and are excluded from JSON exports/imports. Moving a project to another browser/device requires selecting the reference photo again.
+
+## Browser-local character reference library
+
+- Each local project can store up to eight character profiles with a name, story role and visual-continuity description (up to 1,000 characters).
+- Each character may have one optional JPEG, PNG or WebP reference photo up to 8 MiB. Character photo blobs are stored in a separate IndexedDB database, scoped by project ID and character ID.
+- Character descriptions and photo filenames are included in project brief JSON; image bytes are never exported. Importing a project creates fresh project IDs, so any character photos must be selected again on the destination browser.
+- Removing a character or deleting/evicting a project attempts to remove its local character photo. Browser data clearing, private-browsing restrictions or storage eviction can still remove local photos.
+- This is a local character bible only. Scene-by-scene character assignment, server sync and video-model identity conditioning are not implemented yet; the scene planner and worker do not consume these photos at this stage.
 - Browser site-data clearing, private-browsing restrictions, quota limits or browser storage eviction can remove local photos. The project brief remains text-only and can still be exported as JSON.
 - If IndexedDB is unavailable or a write fails, a photo-story brief is not reported as saved; text-only briefs remain usable.
 

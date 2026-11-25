@@ -1,6 +1,8 @@
 const ALLOWED_MODES = new Set(["prompt", "story", "photo-story"]);
 const ALLOWED_DURATIONS = new Set([30, 60, 120, 180, 300]);
 const MAX_FILE_BYTES = 1024 * 1024;
+import { normalizeCharacterList } from "./character-library.js";
+
 const MAX_DRAFTS = 20;
 
 function importError(message) {
@@ -29,6 +31,7 @@ function normalizeDraft(source, { idFactory, now }) {
   if (!ALLOWED_DURATIONS.has(durationSeconds)) {
     throw importError("A project contains an unsupported duration. Allowed: 30, 60, 120, 180 or 300 seconds.");
   }
+  const characters = normalizeCharacterList(source.characters || []);
   const rawDate = typeof source.updatedAt === "string" ? Date.parse(source.updatedAt) : NaN;
   const referencePhotoName = cleanString(source.referencePhotoName, 180)
     .split(/[\\/]/u).pop().replace(/[\\/:*?"<>|]/gu, "_");
@@ -42,6 +45,7 @@ function normalizeDraft(source, { idFactory, now }) {
     prompt,
     story,
     referencePhotoName,
+    characters,
     voice: cleanString(source.voice, 120, "Deep, warm Hindi storyteller") || "Deep, warm Hindi storyteller",
     music: cleanString(source.music, 120, "Cinematic background score") || "Cinematic background score",
     lipSync: source.lipSync !== false,
@@ -72,7 +76,8 @@ export function parseDraftImport(text, {
   const normalized = drafts.map((draft) => normalizeDraft(draft, { idFactory, now }));
   return {
     drafts: normalized,
-    photoReferenceCount: normalized.filter((draft) => draft.mode === "photo-story").length
+    photoReferenceCount: normalized.filter((draft) => draft.mode === "photo-story").length,
+    characterPhotoCount: normalized.reduce((count, draft) => count + draft.characters.filter((character) => Boolean(character.photoName)).length, 0)
   };
 }
 

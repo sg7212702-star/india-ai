@@ -44,6 +44,20 @@ test("imports exported arrays and reports photo projects that need reselect", ()
   assert.equal(result.drafts[1].referencePhotoName, "hero.png");
 });
 
+test("imports character descriptions while excluding image bytes", () => {
+  const project = { ...validPrompt, characters: [{ id: "char-dadaji", name: "Dadaji", role: "Main", visualDescription: "White kurta and grey moustache", photoName: "dadaji.png", photoData: "private-image-bytes" }] };
+  const result = parse(JSON.stringify(project));
+  assert.equal(result.drafts[0].characters.length, 1);
+  assert.equal(result.drafts[0].characters[0].name, "Dadaji");
+  assert.equal(result.characterPhotoCount, 1);
+  assert.equal("photoData" in result.drafts[0].characters[0], false);
+});
+
+test("rejects more than eight imported characters", () => {
+  const characters = Array.from({ length: 9 }, (_, index) => ({ id: "char-" + index, name: "Character " + index }));
+  assert.throws(() => parse(JSON.stringify({ ...validPrompt, characters })), /at most 8 characters/);
+});
+
 test("accepts drafts wrapper", () => {
   const result = parse(JSON.stringify({ drafts: [validPrompt] }));
   assert.equal(result.drafts.length, 1);

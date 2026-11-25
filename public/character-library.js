@@ -41,7 +41,7 @@ export function normalizeCharacter(source, { idFactory = createCharacterId } = {
   const name = cleanText(source.name, MAX_CHARACTER_NAME_LENGTH);
   if (!name) throw libraryError("Enter a name for this character.");
 
-  const id = typeof source.id === "string" && validKeyPart(source.id) ? source.id : idFactory();
+  const id = source.id == null || source.id === "" ? idFactory() : source.id;
   if (!validKeyPart(id)) throw libraryError("Character ID is invalid.");
 
   return {
@@ -49,7 +49,7 @@ export function normalizeCharacter(source, { idFactory = createCharacterId } = {
     name,
     role: cleanText(source.role, MAX_CHARACTER_ROLE_LENGTH) || "Character",
     visualDescription: cleanText(source.visualDescription, MAX_CHARACTER_DESCRIPTION_LENGTH),
-    photoName: cleanFileName(source.photoName || "")
+    photoName: typeof source.photoName === "string" && source.photoName.trim() ? cleanFileName(source.photoName) : ""
   };
 }
 

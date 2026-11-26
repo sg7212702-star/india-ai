@@ -70,6 +70,14 @@ A separate worker runner and process entrypoint now exist in `worker/`. The runn
 - `GET /api/admin/jobs` filters the latest 100 scanned jobs and returns a limited sanitized summary; prompt/story text, worker metadata and private Storage paths are omitted.
 - The admin console is read-only for this phase. It does not disable users, grant roles, retry jobs, modify quota or access video files.
 
+## Scene-wise character assignment preview
+
+- The project builder lets users select which saved character profiles appear in each planned scene.
+- Scene-plan JSON includes selected character IDs, names, roles, visual-continuity descriptions, and a boolean indicating whether a local reference photo was declared.
+- Character image bytes and local filenames are not included in the scene manifest or sent to the planning API. The manifest explicitly remains `renderReady: false` and `referenceImageIncluded: false`.
+- Assignments are saved with the local project brief and survive JSON export/import; stale scene IDs and character IDs are discarded when the plan or character list changes.
+- This is a planning contract only. No video model receives the references until a future authenticated asset-transfer and GPU-worker adapter is implemented.
+
 ## Video generation status
 
 **Real video generation is intentionally disabled.** The Generate control remains unavailable and `/api/health` reports `videoGenerationReady: false`. No slideshow is substituted for a real motion-video result.

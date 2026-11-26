@@ -1,6 +1,7 @@
 import { parseDraftImport, mergeImportedDrafts } from "./draft-import.js";
 import { createLocalPhotoStore, validateLocalReferencePhoto } from "./local-photo-store.js";
 import { createLocalCharacterStore, createCharacterId, normalizeCharacter, normalizeCharacterList, validateCharacterPhoto, MAX_CHARACTERS_PER_PROJECT } from "./character-library.js";
+import { normalizeSceneCharacterAssignments } from "./scene-character-assignment.js";
 (function(){
       const $ = (id) => document.getElementById(id);
       const STORE_KEY = "ai-animation-studio-drafts-v1";
@@ -9,6 +10,7 @@ import { createLocalCharacterStore, createCharacterId, normalizeCharacter, norma
       const photoStore = createLocalPhotoStore();
       const characterStore = createLocalCharacterStore();
       let characters = [];
+      let sceneCharacterAssignments = {};
       const characterPhotoBlobs = new Map();
       const characterPhotoUrls = new Map();
       let pendingCharacterPhoto = null;
@@ -21,6 +23,11 @@ import { createLocalCharacterStore, createCharacterId, normalizeCharacter, norma
       let photoPreviewUrl = "";
       let currentDraftId = null;
       function toast(message){const el=$("toast");el.textContent=message;el.classList.add("show");window.clearTimeout(toast.timer);toast.timer=window.setTimeout(()=>el.classList.remove("show"),2600);}
+      window.aiAnimationStudio = {
+        getCharacters(){return characters.map(({id,name,role,visualDescription,photoName})=>({id,name,role,visualDescription,photoName}));},
+        getSceneCharacterAssignments(){return Object.fromEntries(Object.entries(sceneCharacterAssignments).map(([sceneId,ids])=>[sceneId,[...ids]]));},
+        setSceneCharacterAssignments(value){sceneCharacterAssignments=normalizeSceneCharacterAssignments(value,characters);}
+      };
       function readDrafts(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}catch(_){return [];}}
       function writeDrafts(items){localStorage.setItem(STORE_KEY,JSON.stringify(items));}
       function escapeHtml(value){return String(value).replace(/[&<>"']/g,(ch)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
@@ -28,7 +35,7 @@ import { createLocalCharacterStore, createCharacterId, normalizeCharacter, norma
       function renderCharacters(){
         for(const url of characterPhotoUrls.values())URL.revokeObjectURL(url);characterPhotoUrls.clear();
         const list=$("characterList");list.replaceChildren();$("characterCount").textContent=characters.length+"/"+MAX_CHARACTERS_PER_PROJECT+" characters";
-        if(!characters.length){const empty=document.createElement("div");empty.className="draft-empty";empty.textContent="No character references yet. Add the main character first.";list.append(empty);return;}
+        if(!characters.length){const empty=document.createElement("div");empty.className="draft-empty";empty.textContent="No character references yet. Add the main character first.";list.append(empty);window.dispatchEvent(new Event("studio:characters-changed"));return;}
         for(const character of characters){
           const card=document.createElement("article");card.className="character-card";
           const media=document.createElement("div");media.className="character-avatar";
@@ -43,17 +50,18 @@ import { createLocalCharacterStore, createCharacterId, normalizeCharacter, norma
           if(character.visualDescription){const description=document.createElement("p");description.textContent=character.visualDescription;body.append(description);}
           const photoNote=document.createElement("small");photoNote.textContent=blob?"Local reference photo saved":(character.photoName?"Photo missing in this browser":"No photo attached");body.append(photoNote);
           const remove=document.createElement("button");remove.type="button";remove.className="character-remove";remove.dataset.removeCharacter=character.id;remove.textContent="Remove";
-          card.append(media,body,remove);list.append(card);
+          card.append(media,body,remove);
         }
+        window.dispatchEvent(new Event("studio:characters-changed"));
       }
       function selectCharacterPhoto(file){if(!file)return;const validation=validateCharacterPhoto(file);if(!validation.ok){toast(validation.error);return;}if(pendingCharacterPhotoUrl)URL.revokeObjectURL(pendingCharacterPhotoUrl);pendingCharacterPhoto=file;pendingCharacterPhotoName=file.name;pendingCharacterPhotoUrl=URL.createObjectURL(file);$("characterPhotoPreviewImage").src=pendingCharacterPhotoUrl;$("characterPhotoPreviewName").textContent=file.name;$("characterPhotoPreview").hidden=false;}
-      async function removeCharacter(id){const character=characters.find(item=>item.id===id);if(!character)return;characters=characters.filter(item=>item.id!==id);characterPhotoBlobs.delete(id);renderCharacters();if(currentDraftId&&character.photoName){try{await characterStore.remove(currentDraftId,id);}catch(_){toast("Character removed, but local photo cleanup could not be confirmed.");return;}}toast("Character removed from this project.");}
+      async function removeCharacter(id){const character=characters.find(item=>item.id===id);if(!character)return;characters=characters.filter(item=>item.id!==id);sceneCharacterAssignments=normalizeSceneCharacterAssignments(sceneCharacterAssignments,characters);characterPhotoBlobs.delete(id);renderCharacters();if(currentDraftId&&character.photoName){try{await characterStore.remove(currentDraftId,id);}catch(_){toast("Character removed, but local photo cleanup could not be confirmed.");return;}}toast("Character removed from this project.");}
       function clearPhotoPreview(){if(photoPreviewUrl)URL.revokeObjectURL(photoPreviewUrl);photoPreviewUrl="";$("previewImage").removeAttribute("src");$("photoPreview").classList.remove("show");}
       function showPhoto(blob,name){clearPhotoPreview();photoPreviewUrl=URL.createObjectURL(blob);$("previewImage").src=photoPreviewUrl;$("photoName").textContent=name;$("photoPreview").classList.add("show");}
       function setMode(next){mode=next;document.querySelectorAll("#inputModes button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));$("promptField").hidden=mode==="story";$("storyField").hidden=mode==="prompt";$("uploadField").hidden=mode!=="photo-story";}
       function setStyle(next){style=next;document.querySelectorAll("#styles button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.style===style)));}
       function getPayload(){
-        return {id:currentDraftId||("draft-"+Date.now()),name:$("projectName").value.trim()||"Untitled animation project",mode,style,format:$("ratio").value,durationSeconds:Number($("duration").value),prompt:$("prompt").value.trim(),story:$("story").value.trim(),referencePhotoName:photoLabel,characters:characters.map(({id,name,role,visualDescription,photoName})=>({id,name,role,visualDescription,photoName})),voice:$("voice").value,music:$("music").value,lipSync:$("lipSync").checked,characterContinuity:$("continuity").checked,updatedAt:new Date().toISOString()};
+        return {id:currentDraftId||("draft-"+Date.now()),name:$("projectName").value.trim()||"Untitled animation project",mode,style,format:$("ratio").value,durationSeconds:Number($("duration").value),prompt:$("prompt").value.trim(),story:$("story").value.trim(),referencePhotoName:photoLabel,characters:characters.map(({id,name,role,visualDescription,photoName})=>({id,name,role,visualDescription,photoName})),sceneCharacterAssignments:normalizeSceneCharacterAssignments(sceneCharacterAssignments,characters),voice:$("voice").value,music:$("music").value,lipSync:$("lipSync").checked,characterContinuity:$("continuity").checked,updatedAt:new Date().toISOString()};
       }
       function validate(payload){
         if(mode==="prompt"&&!payload.prompt)return "Add a video prompt first.";
@@ -70,7 +78,7 @@ import { createLocalCharacterStore, createCharacterId, normalizeCharacter, norma
       }
       async function loadDraft(id){
         const item=readDrafts().find(d=>d.id===id);if(!item)return;
-        currentDraftId=item.id;setMode(item.mode||"prompt");setStyle(item.style||"3D Realistic");characters=normalizeCharacterList(item.characters||[]);characterPhotoBlobs.clear();clearPendingCharacterPhoto();renderCharacters();
+        currentDraftId=item.id;setMode(item.mode||"prompt");setStyle(item.style||"3D Realistic");characters=normalizeCharacterList(item.characters||[]);sceneCharacterAssignments=normalizeSceneCharacterAssignments(item.sceneCharacterAssignments||{},characters);characterPhotoBlobs.clear();clearPendingCharacterPhoto();renderCharacters();
         $("projectName").value=item.name||"";$("prompt").value=item.prompt||"";$("story").value=item.story||"";
         $("ratio").value=item.format||"9:16";$("duration").value=String(item.durationSeconds||30);
         $("voice").value=item.voice||"Deep, warm Hindi storyteller";$("music").value=item.music||"Cinematic background score";
@@ -140,7 +148,7 @@ import { createLocalCharacterStore, createCharacterId, normalizeCharacter, norma
       $("removeCharacterPhoto").addEventListener("click",clearPendingCharacterPhoto);
       $("addCharacter").addEventListener("click",()=>{
         if(characters.length>=MAX_CHARACTERS_PER_PROJECT){toast("A project can contain at most "+MAX_CHARACTERS_PER_PROJECT+" characters.");return;}
-        try{const character=normalizeCharacter({id:createCharacterId(),name:$("characterName").value,role:$("characterRole").value,visualDescription:$("characterDescription").value,photoName:pendingCharacterPhotoName});characters.push(character);if(pendingCharacterPhoto)characterPhotoBlobs.set(character.id,pendingCharacterPhoto);$("characterName").value="";$("characterRole").value="";$("characterDescription").value="";clearPendingCharacterPhoto();renderCharacters();toast("Character added. Save the project to keep it.");}catch(error){toast(error.message||"Could not add this character.");}
+        try{const character=normalizeCharacter({id:createCharacterId(),name:$("characterName").value,role:$("characterRole").value,visualDescription:$("characterDescription").value,photoName:pendingCharacterPhotoName});characters.push(character);sceneCharacterAssignments=normalizeSceneCharacterAssignments(sceneCharacterAssignments,characters);if(pendingCharacterPhoto)characterPhotoBlobs.set(character.id,pendingCharacterPhoto);$("characterName").value="";$("characterRole").value="";$("characterDescription").value="";clearPendingCharacterPhoto();renderCharacters();toast("Character added. Save the project to keep it.");}catch(error){toast(error.message||"Could not add this character.");}
       });
       $("characterList").addEventListener("click",event=>{const button=event.target.closest("[data-remove-character]");if(button)removeCharacter(button.dataset.removeCharacter);});
       $("projectForm").addEventListener("submit",saveDraft);
@@ -160,7 +168,7 @@ import { createLocalCharacterStore, createCharacterId, normalizeCharacter, norma
         if(del){
           const id=del.dataset.delete;const item=readDrafts().find(d=>d.id===id);
           writeDrafts(readDrafts().filter(d=>d.id!==id));
-          if(currentDraftId===id){currentDraftId=null;photoBlob=null;photoLabel="";hasSavedPhoto=false;photoRemoved=false;characters=[];characterPhotoBlobs.clear();clearPhotoPreview();clearPendingCharacterPhoto();renderCharacters();}
+          if(currentDraftId===id){currentDraftId=null;photoBlob=null;photoLabel="";hasSavedPhoto=false;photoRemoved=false;characters=[];sceneCharacterAssignments={};characterPhotoBlobs.clear();clearPhotoPreview();clearPendingCharacterPhoto();renderCharacters();}
           renderDrafts();
           if(item?.referencePhotoName){try{await photoStore.remove(id);}catch(_){toast("Project deleted, but its main reference photo cleanup could not be confirmed.");}}
           for(const character of item?.characters||[]){if(character.photoName){try{await characterStore.remove(id,character.id);}catch(_){toast("Project deleted, but a character photo cleanup could not be confirmed.");}}}

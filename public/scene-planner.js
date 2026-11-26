@@ -1,3 +1,4 @@
+import { applySceneCharacterAssignments } from "./scene-character-assignment.js";
 const byId = (id) => document.getElementById(id);
 const previewButton = byId("previewScenePlan");
 const panel = byId("scenePlanPanel");
@@ -28,14 +29,18 @@ function addText(parent, tag, className, value) {
 }
 
 function renderPlan(plan) {
-  latestPlan = plan;
-  summary.textContent = `${plan.sceneCount} scene beats · ${formatDuration(plan.plannedDurationSeconds)} planned motion · ${formatDuration(plan.targetDurationSeconds)} requested`;
+  const studio = window.aiAnimationStudio;
+  const characters = studio?.getCharacters?.() || [];
+  const assignments = studio?.getSceneCharacterAssignments?.() || {};
+  latestPlan = applySceneCharacterAssignments(plan, characters, assignments);
+  plan = latestPlan;
+
+  const assignedSceneCount = plan.scenes.filter((scene) => scene.characterIds?.length).length;
+  summary.textContent = `${plan.sceneCount} scene beats · ${formatDuration(plan.plannedDurationSeconds)} planned motion · ${formatDuration(plan.targetDurationSeconds)} requested · ${assignedSceneCount} scenes with assigned characters`;
   list.replaceChildren();
   warnings.replaceChildren();
 
-  for (const warning of plan.warnings) {
-    addText(warnings, "li", "", warning);
-  }
+  for (const warning of plan.warnings) addText(warnings, "li", "", warning);
   warnings.hidden = plan.warnings.length === 0;
 
   for (const scene of plan.scenes) {
@@ -48,13 +53,56 @@ function renderPlan(plan) {
     card.append(heading);
     addText(card, "p", "scene-source", scene.sourceText);
     addText(card, "small", "scene-direction", scene.shotDirection);
+
+    if (!characters.length) {
+      addText(card, "p", "scene-character-empty", "Add characters in the Character Reference Library above to assign them to this scene.");
+    } else {
+      const fieldset = document.createElement("fieldset");
+      fieldset.className = "scene-character-picker";
+      addText(fieldset, "legend", "", "Characters in this scene");
+      const options = document.createElement("div");
+      options.className = "scene-character-options";
+      const selected = new Set(scene.characterIds || []);
+
+      for (const character of characters) {
+        const label = document.createElement("label");
+        label.className = "scene-character-option";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = selected.has(character.id);
+        checkbox.setAttribute("aria-label", `Include ${character.name} in scene ${scene.order}`);
+        checkbox.addEventListener("change", () => {
+          const current = studio?.getSceneCharacterAssignments?.() || {};
+          const next = { ...current };
+          const ids = new Set(next[scene.sceneId] || []);
+          if (checkbox.checked) ids.add(character.id);
+          else ids.delete(character.id);
+          if (ids.size) next[scene.sceneId] = [...ids];
+          else delete next[scene.sceneId];
+          studio?.setSceneCharacterAssignments?.(next);
+          renderPlan(latestPlan || plan);
+        });
+        const name = document.createElement("span");
+        name.textContent = character.name;
+        label.append(checkbox, name);
+        options.append(label);
+      }
+
+      fieldset.append(options);
+      addText(fieldset, "small", "scene-character-state", "Save the project brief to keep these selections in this browser.");
+      card.append(fieldset);
+    }
     list.append(card);
   }
 
   downloadButton.disabled = false;
-  status.textContent = "Scene plan ready. This is a text-only planning preview; no video was rendered.";
+  status.textContent = "Scene plan ready. Character assignments are included in the JSON; no video was rendered.";
   status.dataset.state = "success";
 }
+
+window.addEventListener("studio:characters-changed", () => {
+  if (latestPlan) renderPlan(latestPlan);
+});
 
 function getSelectedValue(selector, attribute) {
   const selected = document.querySelector(`${selector} [aria-pressed="true"]`);

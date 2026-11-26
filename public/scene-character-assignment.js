@@ -2,7 +2,7 @@ import { normalizeCharacterList } from "./character-library.js";
 
 const MAX_SCENES = 60;
 const MAX_CHARACTERS_PER_SCENE = 8;
-const SCENE_ID_PATTERN = /^scene-\d{2}$/u;
+const SCENE_ID_PATTERN = /^scene-(?:0[1-9]|[1-5]\d|60)$/u;
 
 export function normalizeSceneCharacterAssignments(value, characters = []) {
   if (value == null) return {};

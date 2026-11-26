@@ -2,6 +2,7 @@ const ALLOWED_MODES = new Set(["prompt", "story", "photo-story"]);
 const ALLOWED_DURATIONS = new Set([30, 60, 120, 180, 300]);
 const MAX_FILE_BYTES = 1024 * 1024;
 import { normalizeCharacterList } from "./character-library.js";
+import { normalizeSceneCharacterAssignments } from "./scene-character-assignment.js";
 
 const MAX_DRAFTS = 20;
 
@@ -32,6 +33,7 @@ function normalizeDraft(source, { idFactory, now }) {
     throw importError("A project contains an unsupported duration. Allowed: 30, 60, 120, 180 or 300 seconds.");
   }
   const characters = normalizeCharacterList(source.characters || []);
+  const sceneCharacterAssignments = normalizeSceneCharacterAssignments(source.sceneCharacterAssignments || {}, characters);
   const rawDate = typeof source.updatedAt === "string" ? Date.parse(source.updatedAt) : NaN;
   const referencePhotoName = cleanString(source.referencePhotoName, 180)
     .split(/[\\/]/u).pop().replace(/[\\/:*?"<>|]/gu, "_");
@@ -46,6 +48,7 @@ function normalizeDraft(source, { idFactory, now }) {
     story,
     referencePhotoName,
     characters,
+    sceneCharacterAssignments,
     voice: cleanString(source.voice, 120, "Deep, warm Hindi storyteller") || "Deep, warm Hindi storyteller",
     music: cleanString(source.music, 120, "Cinematic background score") || "Cinematic background score",
     lipSync: source.lipSync !== false,

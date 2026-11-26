@@ -62,10 +62,9 @@ export function applySceneCharacterAssignments(plan, characters = [], assignment
     return { ...scene, characterIds: [...characterIds], characterRefs };
   });
 
-  const warnings = Array.isArray(plan.warnings) ? [...plan.warnings] : [];
-  if (scenes.some((scene) => scene.characterRefs.length)) {
-    warnings.push("Scene character assignments are planning metadata only. Reference photo files stay in this browser and are not uploaded or sent to a video model.");
-  }
+  const photoWarning = "Scene character assignments are planning metadata only. Reference photo files stay in this browser and are not uploaded or sent to a video model.";
+  const warnings = (Array.isArray(plan.warnings) ? plan.warnings : []).filter((warning) => warning !== photoWarning);
+  if (scenes.some((scene) => scene.characterRefs.length)) warnings.push(photoWarning);
 
   return {
     ...plan,

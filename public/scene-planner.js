@@ -1,4 +1,6 @@
 import { applySceneCharacterAssignments } from "./scene-character-assignment.js";
+import { applySceneContinuity } from "./scene-continuity.js";
+
 const byId = (id) => document.getElementById(id);
 const previewButton = byId("previewScenePlan");
 const panel = byId("scenePlanPanel");
@@ -9,34 +11,135 @@ const warnings = byId("scenePlanWarnings");
 const downloadButton = byId("downloadScenePlan");
 let latestPlan = null;
 
-function escapeText(value) {
-  return String(value ?? "");
-}
-
 function formatDuration(seconds) {
   const whole = Math.round(Number(seconds) || 0);
   const minutes = Math.floor(whole / 60);
   const remainder = whole % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+  return String(minutes).padStart(2, "0") + ":" + String(remainder).padStart(2, "0");
 }
 
 function addText(parent, tag, className, value) {
   const element = document.createElement(tag);
   if (className) element.className = className;
-  element.textContent = escapeText(value);
+  element.textContent = String(value ?? "");
   parent.append(element);
   return element;
+}
+
+function renderDialogueEditor(card, scene, studio, sourcePlan) {
+  const fieldset = document.createElement("fieldset");
+  fieldset.className = "scene-dialogue-editor";
+  addText(fieldset, "legend", "", "Hindi character dialogue");
+
+  const assigned = Array.isArray(scene.characterRefs) ? scene.characterRefs : [];
+  const lines = Array.isArray(scene.dialogue) ? scene.dialogue : [];
+  if (!assigned.length) {
+    addText(fieldset, "p", "scene-dialogue-empty", "Assign at least one character to this scene before adding lip-synced dialogue.");
+    card.append(fieldset);
+    return;
+  }
+
+  const composer = document.createElement("div");
+  composer.className = "scene-dialogue-composer";
+  const speaker = document.createElement("select");
+  speaker.className = "control scene-dialogue-speaker";
+  speaker.setAttribute("aria-label", "Dialogue speaker for scene " + scene.order);
+  for (const character of assigned) {
+    const option = document.createElement("option");
+    option.value = character.characterId;
+    option.textContent = character.name;
+    speaker.append(option);
+  }
+  const text = document.createElement("textarea");
+  text.className = "control scene-dialogue-text";
+  text.maxLength = 500;
+  text.rows = 2;
+  text.placeholder = "यहाँ इस कैरेक्टर का हिंदी डायलॉग लिखें…";
+  text.setAttribute("aria-label", "Hindi dialogue text for scene " + scene.order);
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "secondary scene-dialogue-add";
+  add.textContent = "Add dialogue line";
+  add.addEventListener("click", () => {
+    const lineText = text.value.trim();
+    if (!lineText) {
+      status.textContent = "Enter the Hindi dialogue before adding it.";
+      status.dataset.state = "error";
+      return;
+    }
+    const current = studio?.getSceneDialogue?.() || {};
+    const next = { ...current };
+    const linesForScene = [...(next[scene.sceneId] || [])];
+    if (linesForScene.length >= 8) {
+      status.textContent = "A scene can contain at most 8 dialogue lines.";
+      status.dataset.state = "error";
+      return;
+    }
+    linesForScene.push({
+      id: "line-" + Date.now().toString(36),
+      speakerCharacterId: speaker.value,
+      text: lineText
+    });
+    next[scene.sceneId] = linesForScene;
+    try {
+      studio?.setSceneDialogue?.(next);
+      renderPlan(latestPlan || sourcePlan);
+    } catch (error) {
+      status.textContent = error?.message || "Could not save this dialogue line.";
+      status.dataset.state = "error";
+    }
+  });
+  composer.append(speaker, text, add);
+  fieldset.append(composer);
+
+  const lineList = document.createElement("div");
+  lineList.className = "scene-dialogue-lines";
+  for (const line of lines) {
+    const row = document.createElement("article");
+    row.className = "scene-dialogue-line";
+    const content = document.createElement("div");
+    content.className = "scene-dialogue-line-content";
+    addText(content, "strong", "", line.speakerName + " · हिंदी");
+    addText(content, "p", "", line.text);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "scene-dialogue-remove";
+    remove.textContent = "Remove";
+    remove.setAttribute("aria-label", "Remove dialogue line from scene " + scene.order);
+    remove.addEventListener("click", () => {
+      const current = studio?.getSceneDialogue?.() || {};
+      const next = { ...current };
+      next[scene.sceneId] = (next[scene.sceneId] || []).filter((item) => item.id !== line.id);
+      if (!next[scene.sceneId].length) delete next[scene.sceneId];
+      studio?.setSceneDialogue?.(next);
+      renderPlan(latestPlan || sourcePlan);
+    });
+    row.append(content, remove);
+    lineList.append(row);
+  }
+  if (lines.length) fieldset.append(lineList);
+  addText(fieldset, "small", "scene-dialogue-state", "Each line is locked to an assigned character. Audio and lip-sync are not generated in this preview.");
+  card.append(fieldset);
 }
 
 function renderPlan(plan) {
   const studio = window.aiAnimationStudio;
   const characters = studio?.getCharacters?.() || [];
   const assignments = studio?.getSceneCharacterAssignments?.() || {};
-  latestPlan = applySceneCharacterAssignments(plan, characters, assignments);
+  const assignedPlan = applySceneCharacterAssignments(plan, characters, assignments);
+  latestPlan = applySceneContinuity(assignedPlan, {
+    dialogueByScene: studio?.getSceneDialogue?.() || {},
+    characterContinuity: byId("continuity")?.checked !== false
+  });
   plan = latestPlan;
 
   const assignedSceneCount = plan.scenes.filter((scene) => scene.characterIds?.length).length;
-  summary.textContent = `${plan.sceneCount} scene beats · ${formatDuration(plan.plannedDurationSeconds)} planned motion · ${formatDuration(plan.targetDurationSeconds)} requested · ${assignedSceneCount} scenes with assigned characters`;
+  const dialogueCount = plan.scenes.reduce((count, scene) => count + (scene.dialogue?.length || 0), 0);
+  summary.textContent = plan.sceneCount + " scene beats · " +
+    formatDuration(plan.plannedDurationSeconds) + " planned motion · " +
+    formatDuration(plan.targetDurationSeconds) + " requested · " +
+    assignedSceneCount + " scenes with assigned characters · " +
+    dialogueCount + " Hindi dialogue lines";
   list.replaceChildren();
   warnings.replaceChildren();
 
@@ -48,11 +151,20 @@ function renderPlan(plan) {
     card.className = "scene-plan-card";
     const heading = document.createElement("div");
     heading.className = "scene-plan-card-head";
-    addText(heading, "strong", "", `Scene ${scene.order}`);
-    addText(heading, "span", "", `${formatDuration(scene.durationSeconds)} · ${scene.sceneId}`);
+    addText(heading, "strong", "", "Scene " + scene.order);
+    addText(heading, "span", "", formatDuration(scene.durationSeconds) + " · " + scene.sceneId);
     card.append(heading);
     addText(card, "p", "scene-source", scene.sourceText);
     addText(card, "small", "scene-direction", scene.shotDirection);
+    addText(card, "p", "scene-camera", "Camera: " + scene.cameraPlan.angle + " · " + scene.cameraPlan.movement);
+
+    if (scene.continuity.previousSceneId) {
+      addText(card, "p", "scene-continuity",
+        "Opening frame: use the final frame of Scene " + (scene.order - 1) +
+        " exactly; preserve assigned character identity while allowing this new camera angle.");
+    } else {
+      addText(card, "p", "scene-continuity", "Opening: use the project reference when one is available.");
+    }
 
     if (!characters.length) {
       addText(card, "p", "scene-character-empty", "Add characters in the Character Reference Library above to assign them to this scene.");
@@ -70,7 +182,7 @@ function renderPlan(plan) {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.checked = selected.has(character.id);
-        checkbox.setAttribute("aria-label", `Include ${character.name} in scene ${scene.order}`);
+        checkbox.setAttribute("aria-label", "Include " + character.name + " in scene " + scene.order);
         checkbox.addEventListener("change", () => {
           const current = studio?.getSceneCharacterAssignments?.() || {};
           const next = { ...current };
@@ -92,11 +204,13 @@ function renderPlan(plan) {
       addText(fieldset, "small", "scene-character-state", "Save the project brief to keep these selections in this browser.");
       card.append(fieldset);
     }
+
+    renderDialogueEditor(card, scene, studio, plan);
     list.append(card);
   }
 
   downloadButton.disabled = false;
-  status.textContent = "Scene plan ready. Character assignments are included in the JSON; no video was rendered.";
+  status.textContent = "Scene plan ready. Character locks, camera changes, previous-frame links and Hindi dialogue metadata are included; no video or audio was rendered.";
   status.dataset.state = "success";
 }
 
@@ -105,7 +219,7 @@ window.addEventListener("studio:characters-changed", () => {
 });
 
 function getSelectedValue(selector, attribute) {
-  const selected = document.querySelector(`${selector} [aria-pressed="true"]`);
+  const selected = document.querySelector(selector + ' [aria-pressed="true"]');
   return selected?.dataset?.[attribute] || "";
 }
 
@@ -175,6 +289,5 @@ downloadButton?.addEventListener("click", () => {
   anchor.href = url;
   anchor.download = "ai-animation-scene-plan.json";
   anchor.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
-

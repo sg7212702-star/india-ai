@@ -119,3 +119,23 @@
 .scene-character-option input{accent-color:var(--cyan);margin:0}
 .scene-character-empty{font-size:10px;color:var(--muted);margin:10px 0 0}
 .scene-character-state{display:block;font-size:9px;color:var(--muted);margin-top:7px}
+
+
+/* Scene continuity, camera variation and per-character Hindi dialogue metadata */
+.scene-camera{font-size:10px;color:var(--cyan);margin:9px 0 4px}
+.scene-continuity{font-size:10px;color:#c7c2ff;margin:5px 0 0;line-height:1.45}
+.scene-dialogue-editor{margin:12px 0 0;padding:10px;border:1px solid #7be7ee30;border-radius:11px;min-width:0;background:#7be7ee06}
+.scene-dialogue-editor legend{padding:0 5px;color:var(--cyan);font-size:10px;font-weight:750}
+.scene-dialogue-composer{display:grid;gap:7px}
+.scene-dialogue-speaker{font-size:11px;padding:9px}
+.scene-dialogue-text{min-height:62px;font-size:12px}
+.scene-dialogue-add{justify-self:start;padding:8px 11px;font-size:10px}
+.scene-dialogue-empty{font-size:10px;color:var(--muted);margin:5px 0}
+.scene-dialogue-lines{display:grid;gap:6px;margin-top:9px}
+.scene-dialogue-line{display:flex;align-items:flex-start;gap:8px;padding:8px;border:1px solid var(--line);border-radius:9px;background:#ffffff05}
+.scene-dialogue-line-content{min-width:0;flex:1}
+.scene-dialogue-line-content strong{display:block;font-size:10px;color:#dffcff}
+.scene-dialogue-line-content p{font-size:11px;margin:3px 0 0;overflow-wrap:anywhere}
+.scene-dialogue-remove{flex:none;border:0;background:transparent;color:#ffb5c6;font-size:10px;padding:4px}
+.scene-dialogue-state{display:block;color:var(--muted);font-size:9px;margin-top:8px}
+@media(max-width:600px){.scene-dialogue-add{width:100%}}

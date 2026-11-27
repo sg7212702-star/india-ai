@@ -28,7 +28,7 @@ Project briefs are saved in the current browser's local storage and can be expor
 - Each character may have one optional JPEG, PNG or WebP reference photo up to 8 MiB. Character photo blobs are stored in a separate IndexedDB database, scoped by project ID and character ID.
 - Character descriptions and photo filenames are included in project brief JSON; image bytes are never exported. Importing a project creates fresh project IDs, so any character photos must be selected again on the destination browser.
 - Removing a character or deleting/evicting a project attempts to remove its local character photo. Browser data clearing, private-browsing restrictions or storage eviction can still remove local photos.
-- This is a local character bible only. Scene-by-scene character assignment, server sync and video-model identity conditioning are not implemented yet; the scene planner and worker do not consume these photos at this stage.
+- This is a browser-local character bible. Scene-by-scene assignment, camera suggestions, frame-to-frame continuity metadata and speaker-linked Hindi dialogue planning are now included. Server sync and video-model identity conditioning are still not implemented; the worker does not consume these photos at this stage.
 - Browser site-data clearing, private-browsing restrictions, quota limits or browser storage eviction can remove local photos. The project brief remains text-only and can still be exported as JSON.
 - If IndexedDB is unavailable or a write fails, a photo-story brief is not reported as saved; text-only briefs remain usable.
 
@@ -77,6 +77,15 @@ A separate worker runner and process entrypoint now exist in `worker/`. The runn
 - Character image bytes and local filenames are not included in the scene manifest or sent to the planning API. The manifest explicitly remains `renderReady: false` and `referenceImageIncluded: false`.
 - Assignments are saved with the local project brief and survive JSON export/import; stale scene IDs and character IDs are discarded when the plan or character list changes.
 - This is a planning contract only. No video model receives the references until a future authenticated asset-transfer and GPU-worker adapter is implemented.
+
+## Scene continuity and Hindi dialogue planning
+
+- Every scene receives a deterministic camera-angle and movement suggestion; adjacent scenes use different presets so the shot plan does not repeat the same framing by default.
+- Each scene after the first records the preceding scene ID and requires that clip's final frame as the exact first-frame reference for the next clip. The manifest marks that frame as pending and unavailable until a real clip has been rendered.
+- Assigned character identity locks carry only the character ID, name, role and appearance description. Local photo bytes, filenames and storage paths are excluded.
+- Users can add up to eight Hindi dialogue lines per scene. Each line must be assigned to a character already selected for that scene; removing a character also removes lines that no longer have a valid speaker.
+- Dialogue is tagged as `hi-IN` and carries the scene's lip-sync requirement. This is metadata only: no voice, audio timing, voice cloning or lip-sync is produced yet.
+- Scene continuity, dialogue audio and render readiness remain false until a future worker can create each clip, extract its final frame, condition the next clip, and generate/align speech.
 
 ## Video generation status
 

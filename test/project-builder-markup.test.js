@@ -15,3 +15,9 @@ test("character library appears exactly once and scene assignment help is presen
   assert.equal((html.match(/id="characterCount"/gu) || []).length, 1);
   assert.match(html, /scene-character-note/u);
 });
+
+
+test("scene planner exposes continuity and per-character Hindi dialogue guidance", () => {
+  assert.match(html, /previous scene final frame as a planned exact opening reference/u);
+  assert.match(html, /scene-character-note/u);
+});

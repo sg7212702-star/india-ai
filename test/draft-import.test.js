@@ -108,3 +108,27 @@ test("keeps all saved drafts when the local list is already full", () => {
   assert.equal(merged.importedCount, 0);
   assert.equal(merged.skippedCount, 1);
 });
+
+
+test("imports only Hindi dialogue lines whose speaker is assigned to the scene", () => {
+  const project = {
+    ...validPrompt,
+    characters: [
+      { id: "char-dadaji", name: "Dadaji", role: "Main", visualDescription: "White kurta" },
+      { id: "char-pigeon", name: "White pigeon", role: "Companion" }
+    ],
+    sceneCharacterAssignments: { "scene-01": ["char-dadaji"] },
+    sceneDialogue: {
+      "scene-01": [
+        { id: "line-1", speakerCharacterId: "char-dadaji", text: "प्रभु, मेरी रक्षा कीजिए।" },
+        { id: "line-2", speakerCharacterId: "char-pigeon", text: "यह पात्र इस दृश्य में नहीं है।" }
+      ]
+    }
+  };
+  const result = parse(JSON.stringify(project));
+  assert.deepEqual(result.drafts[0].sceneDialogue, {
+    "scene-01": [
+      { id: "line-1", speakerCharacterId: "char-dadaji", text: "प्रभु, मेरी रक्षा कीजिए।" }
+    ]
+  });
+});

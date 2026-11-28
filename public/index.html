@@ -131,7 +131,10 @@
                   <p id="scenePlanSummary"></p>
                   <p class="scene-character-note">Choose which saved characters appear in each scene, add Hindi lines for those characters, and review camera-angle changes. Each later scene links to the previous scene final frame as a planned exact opening reference; the frame itself is not available until a real render exists.</p>
                 </div>
-                <button class="secondary" type="button" id="downloadScenePlan" disabled>Download JSON</button>
+                <div class="scene-plan-actions">
+                  <button class="secondary" type="button" id="downloadScenePlan" disabled>Download scene plan</button>
+                  <button class="secondary" type="button" id="downloadRenderManifest" disabled>Download render manifest</button>
+                </div>
               </div>
               <p class="scene-plan-status" id="scenePlanStatus" role="status" aria-live="polite"></p>
               <ul class="scene-plan-warnings" id="scenePlanWarnings" hidden></ul>

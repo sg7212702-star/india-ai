@@ -19,6 +19,7 @@ import {
 } from './lib/generation-quota.js';
 import { getGenerationJob, listGenerationJobs } from './lib/generation-queue.js';
 import { createScenePlan } from './lib/scene-planner.js';
+import { createRenderManifest } from './lib/render-manifest.js';
 import { privateVideoObjectPath, parseVideoByteRange } from './lib/private-video.js';
 import { decodeReferenceImagePayload, privateReferenceImageObjectPath } from './lib/private-reference-image.js';
 import { getAdminOverview, listAdminJobs, normalizeAdminLimit, normalizeAdminStatus, sanitizeAdminUser } from './lib/admin-dashboard.js';
@@ -198,6 +199,18 @@ app.post('/api/scene-plan', (req, res) => {
   }
 });
 
+app.post('/api/render-manifest', (req, res) => {
+  try {
+    const manifest = buildRenderManifestFromBody(req.body || {});
+    res.set('Cache-Control', 'no-store');
+    return res.json(manifest);
+  } catch (error) {
+    return res.status(error.status || 400).json({
+      error: error.message || 'Could not create the render manifest.'
+    });
+  }
+});
+
 app.get('/api/auth/me', requireFirebaseUser, (req, res) => {
   res.json({
     uid: req.firebaseUser.uid,
@@ -315,6 +328,39 @@ app.post('/api/image', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e?.message || 'Image generation failed.' }); }
 });
 
+function buildRenderManifestFromBody(body = {}) {
+  const scenePlan = createScenePlan(body);
+  return createRenderManifest({
+    request: {
+      title: scenePlan.title,
+      mode: scenePlan.mode,
+      style: scenePlan.style,
+      aspectRatio: scenePlan.aspectRatio,
+      durationSeconds: scenePlan.targetDurationSeconds,
+      voiceDirection: scenePlan.voiceDirection,
+      music: scenePlan.music,
+      lipSync: scenePlan.lipSyncRequested,
+      characterContinuity: scenePlan.characterContinuityRequested,
+      referencePhotoDeclared: scenePlan.mode === 'photo-story'
+    },
+    scenePlan,
+    characters: body.characters || [],
+    sceneCharacterAssignments: body.sceneCharacterAssignments || {},
+    sceneDialogue: body.sceneDialogue || {},
+    // No model, private output bucket, speech, lip-sync or FFmpeg adapter is
+    // configured in this zero-budget build. Keep every capability explicitly off.
+    capabilities: {
+      motionVideo: false,
+      hindiTts: false,
+      lipSync: false,
+      backgroundMusic: false,
+      characterConsistency: false,
+      privateStorage: false,
+      ffmpeg: false
+    }
+  });
+}
+
 function normalizeGenerationRequest(body = {}) {
   const prompt = String(body.prompt || '').trim();
   const story = String(body.story || '').trim();
@@ -337,7 +383,7 @@ function normalizeGenerationRequest(body = {}) {
     throw Object.assign(new Error('Choose a supported duration: 30, 60, 120, 180 or 300 seconds.'), { status: 400 });
   }
 
-  return {
+  const normalized = {
     title,
     mode,
     prompt,
@@ -350,6 +396,21 @@ function normalizeGenerationRequest(body = {}) {
     lipSync: body.lipSync !== false,
     characterContinuity: body.characterContinuity !== false
   };
+  const renderManifest = buildRenderManifestFromBody({ ...body, ...normalized });
+  if (renderManifest.preflight.storyCoverageComplete !== true) {
+    throw Object.assign(new Error('The supplied story does not yet support the selected duration. Add real actions and dialogue before queueing.'), {
+      status: 400,
+      code: 'STORY_EXPANSION_REQUIRED'
+    });
+  }
+  if (renderManifest.preflight.readyForRender !== true) {
+    const blockerCodes = renderManifest.preflight.blockers.map((blocker) => blocker.code).join(', ');
+    throw Object.assign(new Error('The render pipeline is not ready. No quota was reserved. Missing requirements: ' + blockerCodes), {
+      status: 503,
+      code: 'RENDER_PIPELINE_NOT_READY'
+    });
+  }
+  return { ...normalized, renderManifest };
 }
 
 app.post('/api/generation/jobs', requireFirebaseUser, async (req, res) => {

@@ -5,6 +5,7 @@ import {
 } from '../lib/generation-queue.js';
 import { finishGeneration } from '../lib/generation-quota.js';
 import { validateWorkerOutput } from './output-contract.js';
+import { assertRenderManifestForWorker } from '../lib/render-manifest.js';
 
 const CLAIM_RACE_CODES = new Set([
   'JOB_NOT_FOUND',
@@ -77,6 +78,22 @@ export function createGenerationWorker({
       throw error;
     }
 
+    let renderManifest;
+    try {
+      renderManifest = assertRenderManifestForWorker(claim.request?.renderManifest);
+    } catch (error) {
+      await finishGeneration(db, {
+        uid: claim.uid,
+        jobId,
+        workerId,
+        succeeded: false,
+        failureCode: safeFailureCode(error),
+        now: now()
+      });
+      logger.warn?.(`Generation job ${jobId} was rejected before provider execution: ${safeFailureCode(error)}.`);
+      return true;
+    }
+
     if (claim.attempts > maxAttempts) {
       await finishGeneration(db, {
         uid: claim.uid,
@@ -126,6 +143,7 @@ export function createGenerationWorker({
         uid: claim.uid,
         jobId,
         request: claim.request,
+        renderManifest,
         attempt: claim.attempts,
         signal: controller.signal
       });

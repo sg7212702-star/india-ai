@@ -62,6 +62,18 @@ A separate worker runner and process entrypoint now exist in `worker/`. The runn
 - Scene density is capped at an eight-second planning target. If the supplied text is too short for the selected duration, the response reports the supported planned duration and asks for more real story beats instead of inventing filler.
 - `public/scene-planner.js` renders the scene breakdown and exports the manifest from the project builder.
 
+
+## Multi-scene render manifest and worker handoff
+
+- `lib/render-manifest.js` converts the server-generated scene plan, character assignments and Hindi dialogue metadata into a versioned `ai-animation-render-manifest` contract.
+- `POST /api/render-manifest` exports the same contract from the Scene Planner without creating a job or reserving quota. The project builder offers a separate **Download render manifest** action.
+- Each scene has a deterministic order, camera plan, assigned character locks, Hindi narration/dialogue requirements, required artifacts, and an explicit dependency on the previous scene's final frame. No final-frame URL or storage path is fabricated.
+- The manifest records MP4/H.264/AAC assembly requirements and a preflight blocker list. It excludes browser photo names, image bytes, public URLs and private Storage paths.
+- Browser-local character/project photos are not transferred by this manifest. If a project or character photo is declared, preflight blocks worker readiness until a future authenticated private-asset transfer is implemented.
+- The server currently sets motion video, Hindi TTS, lip-sync, background music, character consistency, private storage and FFmpeg capabilities to **false**. Therefore the manifest is planning-only and generation requests are rejected before quota reservation even if the queue feature flag is mistakenly enabled.
+- `worker/runner.js` validates the manifest and readiness before calling the adapter. Missing or blocked manifests fail safely and refund the reservation; a provider cannot complete a job from still images or an unverified plan.
+- This is a handoff contract, not a rendering engine. No GPU model, audio model or FFmpeg render pipeline is included yet.
+
 ## Read-only admin console
 
 - `/admin.html` is a role-gated monitoring page; the server requires a verified Firebase token and the `admin: true` custom claim for every admin endpoint.

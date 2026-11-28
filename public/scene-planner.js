@@ -9,6 +9,7 @@ const summary = byId("scenePlanSummary");
 const list = byId("scenePlanList");
 const warnings = byId("scenePlanWarnings");
 const downloadButton = byId("downloadScenePlan");
+const renderManifestButton = byId("downloadRenderManifest");
 let latestPlan = null;
 
 function formatDuration(seconds) {
@@ -210,6 +211,7 @@ function renderPlan(plan) {
   }
 
   downloadButton.disabled = false;
+  if (renderManifestButton) renderManifestButton.disabled = false;
   status.textContent = "Scene plan ready. Character locks, camera changes, previous-frame links and Hindi dialogue metadata are included; no video or audio was rendered.";
   status.dataset.state = "success";
 }
@@ -278,6 +280,60 @@ previewButton?.addEventListener("click", async () => {
   } finally {
     previewButton.disabled = false;
     previewButton.textContent = "Preview scene breakdown";
+  }
+});
+
+renderManifestButton?.addEventListener("click", async () => {
+  if (!latestPlan) return;
+  const studio = window.aiAnimationStudio;
+  const mode = getSelectedValue("#inputModes", "mode") || "prompt";
+  const style = getSelectedValue("#styles", "style") || "3D Realistic";
+  const payload = {
+    title: byId("projectName").value.trim(),
+    mode,
+    prompt: byId("prompt").value,
+    story: byId("story").value,
+    style,
+    aspectRatio: byId("ratio").value,
+    durationSeconds: Number(byId("duration").value),
+    voiceDirection: byId("voice").value,
+    music: byId("music").value,
+    lipSync: byId("lipSync").checked,
+    characterContinuity: byId("continuity").checked,
+    characters: studio?.getCharacters?.() || [],
+    sceneCharacterAssignments: studio?.getSceneCharacterAssignments?.() || {},
+    sceneDialogue: studio?.getSceneDialogue?.() || {}
+  };
+
+  renderManifestButton.disabled = true;
+  const previousLabel = renderManifestButton.textContent;
+  renderManifestButton.textContent = "Preparing manifest…";
+  status.textContent = "Validating scene dependencies and worker requirements…";
+  status.dataset.state = "loading";
+  try {
+    const response = await fetch("/api/render-manifest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Could not prepare the render manifest.");
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "ai-animation-render-manifest.json";
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const blockerCount = result.preflight?.blockers?.length || 0;
+    status.textContent = "Render manifest exported. " + blockerCount + " pipeline requirement(s) remain; no video or audio was generated.";
+    status.dataset.state = blockerCount ? "warning" : "success";
+  } catch (error) {
+    status.textContent = error?.message || "Could not export the render manifest.";
+    status.dataset.state = "error";
+  } finally {
+    renderManifestButton.disabled = false;
+    renderManifestButton.textContent = previousLabel;
   }
 });
 

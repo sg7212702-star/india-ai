@@ -264,6 +264,7 @@ previewButton?.addEventListener("click", async () => {
   list.replaceChildren();
   warnings.replaceChildren();
   downloadButton.disabled = true;
+  if (renderManifestButton) renderManifestButton.disabled = true;
 
   try {
     const response = await fetch("/api/scene-plan", {

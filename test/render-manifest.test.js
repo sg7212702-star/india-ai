@@ -162,3 +162,21 @@ test("manifest size is bounded before it can be persisted in a queue job", () =>
   });
   assert.ok(Buffer.byteLength(JSON.stringify(manifest), "utf8") < 750_000);
 });
+
+test("worker rejects a manifest whose scene dependency chain was altered", () => {
+  const manifest = makeManifest();
+  manifest.renderSequence[1].dependsOnSceneIds = [];
+  assert.throws(() => assertRenderManifestForWorker(manifest), { code: "RENDER_MANIFEST_INVALID" });
+});
+
+test("worker rejects a manifest that claims a browser reference photo was embedded", () => {
+  const manifest = makeManifest();
+  manifest.characters[0].referencePhotoIncluded = true;
+  assert.throws(() => assertRenderManifestForWorker(manifest), { code: "RENDER_MANIFEST_INVALID" });
+});
+
+test("worker rejects a forged ready flag while preflight blockers remain", () => {
+  const manifest = makeManifest();
+  manifest.preflight.blockers.push({ code: "PRIVATE_STORAGE_REQUIRED", message: "Missing private storage." });
+  assert.throws(() => assertRenderManifestForWorker(manifest), { code: "RENDER_MANIFEST_NOT_READY" });
+});

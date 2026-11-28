@@ -4,7 +4,7 @@ A work-in-progress project builder for story-led 2D and realistic 3D animation.
 
 ## Current status
 
-The responsive project-builder shell is available at `public/index.html`, with external `public/styles.css` and `public/app.js` assets. It can prepare a brief from a text prompt, a full story, or a reference photo plus story; choose 2D or realistic 3D, 9:16 or 16:9, a target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
+The responsive project-builder shell is available at `public/index.html`, with external `public/styles.css` and `public/app.js` assets. It can prepare a brief from a text prompt, a full story, or a reference photo plus story; add up to eight local character profiles; choose 2D or realistic 3D, 9:16 or 16:9, a target length up to five minutes, Hindi voice direction, music, lip-sync, and character-continuity settings.
 
 Project briefs are saved in the current browser's local storage and can be exported as JSON. They are not yet synced to a user account or server. A selected reference photo is stored separately in this browser's IndexedDB and is restored when the same saved brief is reopened. It is not uploaded to a server and is never embedded in a JSON export. A server-side upload API exists as a backend foundation but is not connected to this UI.
 
@@ -21,6 +21,14 @@ Project briefs are saved in the current browser's local storage and can be expor
 - `public/local-photo-store.js` stores the selected JPEG, PNG or WebP as a Blob in IndexedDB, keyed by the local project ID. The size limit is 8 MiB per selected image.
 - Reopening the project in the same browser restores the preview without reading the image into localStorage. Deleting a project also attempts to remove its stored image.
 - Photos are not uploaded, are not synced to the user's account, and are excluded from JSON exports/imports. Moving a project to another browser/device requires selecting the reference photo again.
+
+## Browser-local character reference library
+
+- Each local project can store up to eight character profiles with a name, story role and visual-continuity description (up to 1,000 characters).
+- Each character may have one optional JPEG, PNG or WebP reference photo up to 8 MiB. Character photo blobs are stored in a separate IndexedDB database, scoped by project ID and character ID.
+- Character descriptions and photo filenames are included in project brief JSON; image bytes are never exported. Importing a project creates fresh project IDs, so any character photos must be selected again on the destination browser.
+- Removing a character or deleting/evicting a project attempts to remove its local character photo. Browser data clearing, private-browsing restrictions or storage eviction can still remove local photos.
+- This is a browser-local character bible. Scene-by-scene assignment, camera suggestions, frame-to-frame continuity metadata and speaker-linked Hindi dialogue planning are now included. Server sync and video-model identity conditioning are still not implemented; the worker does not consume these photos at this stage.
 - Browser site-data clearing, private-browsing restrictions, quota limits or browser storage eviction can remove local photos. The project brief remains text-only and can still be exported as JSON.
 - If IndexedDB is unavailable or a write fails, a photo-story brief is not reported as saved; text-only briefs remain usable.
 
@@ -54,6 +62,18 @@ A separate worker runner and process entrypoint now exist in `worker/`. The runn
 - Scene density is capped at an eight-second planning target. If the supplied text is too short for the selected duration, the response reports the supported planned duration and asks for more real story beats instead of inventing filler.
 - `public/scene-planner.js` renders the scene breakdown and exports the manifest from the project builder.
 
+
+## Multi-scene render manifest and worker handoff
+
+- `lib/render-manifest.js` converts the server-generated scene plan, character assignments and Hindi dialogue metadata into a versioned `ai-animation-render-manifest` contract.
+- `POST /api/render-manifest` exports the same contract from the Scene Planner without creating a job or reserving quota. The project builder offers a separate **Download render manifest** action.
+- Each scene has a deterministic order, camera plan, assigned character locks, Hindi narration/dialogue requirements, required artifacts, and an explicit dependency on the previous scene's final frame. No final-frame URL or storage path is fabricated.
+- The manifest records MP4/H.264/AAC assembly requirements and a preflight blocker list. It excludes browser photo names, image bytes, public URLs and private Storage paths.
+- Browser-local character/project photos are not transferred by this manifest. If a project or character photo is declared, preflight blocks worker readiness until a future authenticated private-asset transfer is implemented.
+- The server currently sets motion video, Hindi TTS, lip-sync, background music, character consistency, private storage and FFmpeg capabilities to **false**. Therefore the manifest is planning-only and generation requests are rejected before quota reservation even if the queue feature flag is mistakenly enabled.
+- `worker/runner.js` validates the manifest and readiness before calling the adapter. Missing or blocked manifests fail safely and refund the reservation; a provider cannot complete a job from still images or an unverified plan.
+- This is a handoff contract, not a rendering engine. No GPU model, audio model or FFmpeg render pipeline is included yet.
+
 ## Read-only admin console
 
 - `/admin.html` is a role-gated monitoring page; the server requires a verified Firebase token and the `admin: true` custom claim for every admin endpoint.
@@ -61,6 +81,23 @@ A separate worker runner and process entrypoint now exist in `worker/`. The runn
 - `GET /api/admin/users` paginates sanitized Firebase Auth records. Password hashes, salts and custom claims are not returned.
 - `GET /api/admin/jobs` filters the latest 100 scanned jobs and returns a limited sanitized summary; prompt/story text, worker metadata and private Storage paths are omitted.
 - The admin console is read-only for this phase. It does not disable users, grant roles, retry jobs, modify quota or access video files.
+
+## Scene-wise character assignment preview
+
+- The project builder lets users select which saved character profiles appear in each planned scene.
+- Scene-plan JSON includes selected character IDs, names, roles, visual-continuity descriptions, and a boolean indicating whether a local reference photo was declared.
+- Character image bytes and local filenames are not included in the scene manifest or sent to the planning API. The manifest explicitly remains `renderReady: false` and `referenceImageIncluded: false`.
+- Assignments are saved with the local project brief and survive JSON export/import; stale scene IDs and character IDs are discarded when the plan or character list changes.
+- This is a planning contract only. No video model receives the references until a future authenticated asset-transfer and GPU-worker adapter is implemented.
+
+## Scene continuity and Hindi dialogue planning
+
+- Every scene receives a deterministic camera-angle and movement suggestion; adjacent scenes use different presets so the shot plan does not repeat the same framing by default.
+- Each scene after the first records the preceding scene ID and requires that clip's final frame as the exact first-frame reference for the next clip. The manifest marks that frame as pending and unavailable until a real clip has been rendered.
+- Assigned character identity locks carry only the character ID, name, role and appearance description. Local photo bytes, filenames and storage paths are excluded.
+- Users can add up to eight Hindi dialogue lines per scene. Each line must be assigned to a character already selected for that scene; removing a character also removes lines that no longer have a valid speaker.
+- Dialogue is tagged as `hi-IN` and carries the scene's lip-sync requirement. This is metadata only: no voice, audio timing, voice cloning or lip-sync is produced yet.
+- Scene continuity, dialogue audio and render readiness remain false until a future worker can create each clip, extract its final frame, condition the next clip, and generate/align speech.
 
 ## Video generation status
 

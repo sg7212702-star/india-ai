@@ -44,6 +44,20 @@ test("imports exported arrays and reports photo projects that need reselect", ()
   assert.equal(result.drafts[1].referencePhotoName, "hero.png");
 });
 
+test("imports character descriptions while excluding image bytes", () => {
+  const project = { ...validPrompt, characters: [{ id: "char-dadaji", name: "Dadaji", role: "Main", visualDescription: "White kurta and grey moustache", photoName: "dadaji.png", photoData: "private-image-bytes" }] };
+  const result = parse(JSON.stringify(project));
+  assert.equal(result.drafts[0].characters.length, 1);
+  assert.equal(result.drafts[0].characters[0].name, "Dadaji");
+  assert.equal(result.characterPhotoCount, 1);
+  assert.equal("photoData" in result.drafts[0].characters[0], false);
+});
+
+test("rejects more than eight imported characters", () => {
+  const characters = Array.from({ length: 9 }, (_, index) => ({ id: "char-" + index, name: "Character " + index }));
+  assert.throws(() => parse(JSON.stringify({ ...validPrompt, characters })), /at most 8 characters/);
+});
+
 test("accepts drafts wrapper", () => {
   const result = parse(JSON.stringify({ drafts: [validPrompt] }));
   assert.equal(result.drafts.length, 1);
@@ -93,4 +107,28 @@ test("keeps all saved drafts when the local list is already full", () => {
   assert.equal(merged.drafts[19].id, "saved-19");
   assert.equal(merged.importedCount, 0);
   assert.equal(merged.skippedCount, 1);
+});
+
+
+test("imports only Hindi dialogue lines whose speaker is assigned to the scene", () => {
+  const project = {
+    ...validPrompt,
+    characters: [
+      { id: "char-dadaji", name: "Dadaji", role: "Main", visualDescription: "White kurta" },
+      { id: "char-pigeon", name: "White pigeon", role: "Companion" }
+    ],
+    sceneCharacterAssignments: { "scene-01": ["char-dadaji"] },
+    sceneDialogue: {
+      "scene-01": [
+        { id: "line-1", speakerCharacterId: "char-dadaji", text: "प्रभु, मेरी रक्षा कीजिए।" },
+        { id: "line-2", speakerCharacterId: "char-pigeon", text: "यह पात्र इस दृश्य में नहीं है।" }
+      ]
+    }
+  };
+  const result = parse(JSON.stringify(project));
+  assert.deepEqual(result.drafts[0].sceneDialogue, {
+    "scene-01": [
+      { id: "line-1", speakerCharacterId: "char-dadaji", text: "प्रभु, मेरी रक्षा कीजिए।" }
+    ]
+  });
 });

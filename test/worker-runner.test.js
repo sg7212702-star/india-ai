@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { getGenerationJob } from '../lib/generation-queue.js';
 import { getGenerationUsage, reserveGenerationSlot } from '../lib/generation-quota.js';
 import { createGenerationWorker } from '../worker/runner.js';
+import { createScenePlan } from '../lib/scene-planner.js';
+import { createRenderManifest } from '../lib/render-manifest.js';
 
 class FakeFirestore {
   constructor() { this.data = new Map(); }
@@ -90,7 +92,36 @@ const fixedNow = new Date('2026-11-17T05:00:00Z');
 const timestamp = () => new Date(fixedNow);
 const quietLogger = { info() {}, warn() {}, error() {} };
 
-async function addJob(db, jobId = 'job-worker-1', uid = 'user-worker') {
+function readyRenderManifest() {
+  const request = {
+    title: 'Worker test',
+    mode: 'story',
+    story: 'दादाजी सुबह गाँव के पुराने मंदिर की ओर जाते हैं। रास्ते में उन्हें एक घायल सफेद कबूतर दिखाई देता है। वे उसे पानी पिलाते हैं और मंदिर की ओर सुरक्षित लेकर चलते हैं। मंदिर की घंटियाँ बजती हैं और आकाश में दिव्य प्रकाश फैलता है। दादाजी आश्चर्य से ऊपर देखते हैं।',
+    style: '3D Realistic',
+    aspectRatio: '9:16',
+    durationSeconds: 30,
+    voiceDirection: 'Warm Hindi storyteller',
+    music: 'Cinematic score',
+    lipSync: true,
+    characterContinuity: true
+  };
+  return createRenderManifest({
+    request,
+    scenePlan: createScenePlan(request),
+    capabilities: {
+      motionVideo: true,
+      hindiTts: true,
+      lipSync: true,
+      backgroundMusic: true,
+      characterConsistency: true,
+      privateStorage: true,
+      ffmpeg: true
+    },
+    now: () => new Date(fixedNow)
+  });
+}
+
+async function addJob(db, jobId = 'job-worker-1', uid = 'user-worker', requestOverrides = {}) {
   await reserveGenerationSlot(db, {
     uid,
     jobId,
@@ -100,7 +131,9 @@ async function addJob(db, jobId = 'job-worker-1', uid = 'user-worker') {
       title: 'Worker test',
       style: '3D Realistic',
       aspectRatio: '9:16',
-      durationSeconds: 30
+      durationSeconds: 30,
+      renderManifest: readyRenderManifest(),
+      ...requestOverrides
     }
   });
 }
@@ -125,7 +158,9 @@ test('worker completes a real MP4 artifact and hides its private storage path fr
     db,
     adapter: {
       available: true,
-      async generate({ uid, jobId }) {
+      async generate({ uid, jobId, renderManifest }) {
+        assert.equal(renderManifest.contract, 'ai-animation-render-manifest');
+        assert.equal(renderManifest.workerHandoff.readyForRender, true);
         return { output: validOutput(uid, jobId) };
       },
       async verifyOutput() { return true; }
@@ -149,6 +184,84 @@ test('worker completes a real MP4 artifact and hides its private storage path fr
   const usage = await getGenerationUsage(db, 'user-worker', { now: fixedNow });
   assert.equal(usage.activeJobId, null);
   assert.equal(usage.used, 1);
+});
+
+test('worker rejects a missing render manifest before calling the video adapter and refunds quota', async () => {
+  const db = new FakeFirestore();
+  await addJob(db, 'job-no-manifest', 'user-worker', { renderManifest: null });
+  let providerCalled = false;
+  const worker = createGenerationWorker({
+    db,
+    adapter: {
+      available: true,
+      async generate() {
+        providerCalled = true;
+        return { output: validOutput('user-worker', 'job-no-manifest') };
+      },
+      async verifyOutput() { return true; }
+    },
+    workerId: 'worker-test',
+    leaseMs: 60_000,
+    now: () => new Date(fixedNow),
+    logger: quietLogger
+  });
+
+  await worker.runOnce();
+  const job = (await db.collection('jobs').doc('job-no-manifest').get()).data();
+  assert.equal(providerCalled, false);
+  assert.equal(job.status, 'failed');
+  assert.equal(job.failureCode, 'RENDER_MANIFEST_MISSING');
+  const usage = await getGenerationUsage(db, 'user-worker', { now: fixedNow });
+  assert.equal(usage.used, 0);
+  assert.equal(usage.activeJobId, null);
+});
+
+test('worker rejects a planning-only manifest before provider execution', async () => {
+  const db = new FakeFirestore();
+  const blocked = createRenderManifest({
+    request: {
+      title: 'Blocked worker test',
+      mode: 'story',
+      story: 'दादाजी मंदिर जाते हैं।',
+      style: '3D Realistic',
+      aspectRatio: '9:16',
+      durationSeconds: 300,
+      music: 'Cinematic score'
+    },
+    scenePlan: createScenePlan({
+      title: 'Blocked worker test',
+      mode: 'story',
+      story: 'दादाजी मंदिर जाते हैं।',
+      style: '3D Realistic',
+      aspectRatio: '9:16',
+      durationSeconds: 300
+    })
+  });
+  await addJob(db, 'job-blocked-manifest', 'user-worker', { renderManifest: blocked });
+  let providerCalled = false;
+  const worker = createGenerationWorker({
+    db,
+    adapter: {
+      available: true,
+      async generate() {
+        providerCalled = true;
+        return { output: validOutput('user-worker', 'job-blocked-manifest') };
+      },
+      async verifyOutput() { return true; }
+    },
+    workerId: 'worker-test',
+    leaseMs: 60_000,
+    now: () => new Date(fixedNow),
+    logger: quietLogger
+  });
+
+  await worker.runOnce();
+  const job = (await db.collection('jobs').doc('job-blocked-manifest').get()).data();
+  assert.equal(providerCalled, false);
+  assert.equal(job.status, 'failed');
+  assert.equal(job.failureCode, 'RENDER_MANIFEST_NOT_READY');
+  const usage = await getGenerationUsage(db, 'user-worker', { now: fixedNow });
+  assert.equal(usage.used, 0);
 });
 
 test('worker refuses to start without an available video adapter and leaves jobs untouched', async () => {

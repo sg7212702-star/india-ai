@@ -6,6 +6,8 @@ The worker is a separate Node.js process. It polls Firestore, transactionally cl
 
 The process refuses to start unless `VIDEO_ADAPTER_MODULE` points to a trusted local ES module that exports `createVideoAdapter({ env })` and returns an adapter with `available: true` plus `generate()` and `verifyOutput()` functions. It does not claim jobs when that adapter is missing or unavailable.
 
+Before the adapter is called, the runner also validates `request.renderManifest` with `assertRenderManifestForWorker()`. A missing, malformed or planning-only manifest fails safely before provider execution and refunds the quota reservation. A ready manifest is passed to `generate({ uid, jobId, request, renderManifest, attempt, signal })`.
+
 No provider adapter or GPU model is included in this repository yet. Do not create a fake adapter that returns still images or marks a job complete without a real MP4. Keep `GENERATION_QUEUE_ENABLED=false` on the web/API server until a real adapter, private object storage, and a smoke test are deployed.
 
 ## Adapter contract
